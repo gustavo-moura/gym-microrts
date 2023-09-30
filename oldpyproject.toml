@@ -39,7 +39,6 @@ files = ["*/__init__.py"]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
 build-backend = "poetry.core.masonry.api"
 
-
 [tool.poetry.extras]
 spyder = ["spyder"]
 cleanrl = ["cleanrl"]

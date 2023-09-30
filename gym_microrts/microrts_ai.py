@@ -66,6 +66,10 @@ def naiveMCTSAI(utt):
 
     return NaiveMCTS(utt)
 
+def vulcanMCTSAI(utt):
+    from ai.mcts.vulcanmcts import VulcanMCTS
+
+    return VulcanMCTS(utt)
 
 # https://github.com/AmoyZhp/MixedBotmRTS
 def mixedBot(utt):
@@ -129,4 +133,5 @@ ALL_AIS = [
     lightRushAI,
     coacAI,
     naiveMCTSAI,
+    vulcanMCTSAI,
 ]
