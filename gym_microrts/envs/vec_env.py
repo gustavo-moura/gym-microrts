@@ -34,6 +34,7 @@ class MicroRTSGridModeVecEnv:
         ai2s=[],
         map_paths=["maps/10x10/basesTwoWorkers10x10.xml"],
         reward_weight=np.array([0.0, 1.0, 0.0, 0.0, 0.0, 5.0]),
+        shutdown_jvm=True,
     ):
 
         self.num_selfplay_envs = num_selfplay_envs
@@ -53,6 +54,7 @@ class MicroRTSGridModeVecEnv:
                 len(map_paths) == self.num_envs
             ), "if multiple maps are provided, they should be provided for each environment"
         self.reward_weight = reward_weight
+        self.shutdown_jvm = shutdown_jvm
 
         # read map
         self.microrts_path = os.path.join(gym_microrts.__path__[0], "microrts")
@@ -212,7 +214,8 @@ class MicroRTSGridModeVecEnv:
     def close(self):
         if jpype._jpype.isStarted():
             self.vec_client.close()
-            jpype.shutdownJVM()
+            if self.shutdown_jvm:
+                jpype.shutdownJVM()
 
     def get_action_mask(self):
         action_mask = np.array(self.vec_client.getMasks(0))
@@ -222,7 +225,8 @@ class MicroRTSGridModeVecEnv:
 
 
 class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 150}
+    #original: metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 150}
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 1}
 
     def __init__(
         self,
@@ -233,6 +237,7 @@ class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
         render_theme=2,
         map_paths="maps/10x10/basesTwoWorkers10x10.xml",
         reward_weight=np.array([0.0, 1.0, 0.0, 0.0, 0.0, 5.0]),
+        shutdown_jvm=True,
     ):
 
         self.ai1s = ai1s
@@ -244,6 +249,8 @@ class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
         self.render_theme = render_theme
         self.map_paths = map_paths
         self.reward_weight = reward_weight
+        self.shutdown_jvm = shutdown_jvm
+        self.render_mode = "rgb_array"
 
         # read map
         self.microrts_path = os.path.join(gym_microrts.__path__[0], "microrts")
@@ -355,7 +362,7 @@ class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
         else:
             return None
 
-    def render(self, mode="human"):
+    def render(self, mode="rgb_array"): # original: mode="human"
         if mode == "human":
             self.render_client.render(False)
         elif mode == "rgb_array":
@@ -366,7 +373,8 @@ class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
     def close(self):
         if jpype._jpype.isStarted():
             self.vec_client.close()
-            jpype.shutdownJVM()
+            if self.shutdown_jvm:
+                jpype.shutdownJVM()
 
 
 class MicroRTSGridModeSharedMemVecEnv(MicroRTSGridModeVecEnv):
