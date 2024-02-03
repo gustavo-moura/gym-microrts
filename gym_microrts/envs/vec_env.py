@@ -226,7 +226,7 @@ class MicroRTSGridModeVecEnv:
 
 class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
     #original: metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 150}
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 1}
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 150}
 
     def __init__(
         self,

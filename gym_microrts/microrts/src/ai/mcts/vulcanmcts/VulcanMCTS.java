@@ -44,7 +44,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public float epsilon_l = 0.25f;
     public float epsilon_g = 0.0f;
 
-    // these variables are for using a discount factor on the epsilon values above. My experiments indicate that things work better without discount
+    // these variables are for using a discount factor on the epsilon values above. 
+    // My experiments indicate that things work better without discount
     // So, they are just maintained here for completeness:
     public float initial_epsilon_0 = 0.2f;
     public float initial_epsilon_l = 0.25f;
@@ -453,48 +454,40 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }    
 
     
+    // Vulcan
+
     public void setRBFDelta(float rbf_delta) {
         this.rbf_delta = rbf_delta;
     }
 
-
+    
     public double sequence_execution_risk(double[] risks){
         
         double prod_safety = 1;
         for (int i = 0; i < risks.length; i++){
-            prod_safety = prod_safety * (1 - (risks[i]/10));
+            prod_safety = prod_safety * (1 - (risks[i] / 10));
         }
         
-        double ser=(1-prod_safety)/prod_safety;
+        double ser = (1 - prod_safety) / prod_safety;
         
         return ser;
     }
     
 
     public double risk_bounding_function(double[] risks){
-        /* rbf(slc(history)) 
-         * rbf = rbf_delta * slc(history)
-        */
-        
         double prod_risk = 0;
+
         for (int i = 0; i < risks.length; i++){
             prod_risk = prod_risk + (Math.pow(0.99, i) * (risks[i]/10));
         }
         
-        // sugestao do claudio
-        // if (prod_risk < 0.1){
-        //     prod_risk = 0.1;
-        // }
-
+        // sufficient local conditions
         double slc = (1 - prod_risk) / (prod_risk * 100);
 
-
         // overriting rbf_delta
-        rbf_delta = 1.0f;
+        // rbf_delta = 1.0f;
 
         double rbf = rbf_delta * slc; 
-        
-        
         // System.out.println("rbf: " + rbf);
 
         return rbf;
@@ -518,14 +511,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             int time = gs2.getTime() - gs_to_start_from.getTime();
             double local_evaluation = ef.evaluate(player, 1-player, gs2);
             global_last_eval = local_evaluation;
-            // azul: evaluate(0,1) -> player maximiza
-            // ganha 1
-            // perde -1, risco < -0.4
-
-            // verm: evaluate(1,0) -> player minimiza
-            // ganha -1
-            // perde 1, risco > 0.4
-
 
             double evaluation = local_evaluation * Math.pow(0.99, time/10.0);
 
@@ -547,8 +532,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 epsilon_l*=discount_l;
                 epsilon_g*=discount_g;
                 total_runs++;
-                
-                //System.out.println(total_runs + " - " + epsilon_0 + ", " + epsilon_l + ", " + epsilon_g);
             
             }
             else{
@@ -567,6 +550,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         }
         return true;
     }
+
 
     public double[][] simulate_evaluated(GameState gs, int time, int player) throws Exception {
         boolean gameover = false;
@@ -601,4 +585,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         // return evals and risks
         return new double[][]{evals, risks};
     }
+
+
 }

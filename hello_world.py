@@ -68,7 +68,7 @@ evaluations1 = []
 
 
 for i in range(1000):
-    envs.render()
+    #envs.render()
     #print(i)
     # TODO: this numpy's `sample` function is very very slow.
     # PyTorch's `sample` function is much much faster,
@@ -88,11 +88,11 @@ for i in range(1000):
         ),
         axis=1,
     )
-    action = np.array([envs.action_space.sample()])
+    #action = np.array([envs.action_space.sample()])
     # with np.printoptions(threshold=np.inf):
     #     print(action)
     #     print(f'\n{np.shape(action)}')
-    #import pdb; pdb.set_trace()
+    import pdb; pdb.set_trace()
     next_obs, reward, done, info = envs.step(action)
 
     #with np.printoptions(threshold=np.inf):
