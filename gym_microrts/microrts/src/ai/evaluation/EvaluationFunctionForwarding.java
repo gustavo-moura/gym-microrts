@@ -22,7 +22,10 @@ public class EvaluationFunctionForwarding extends EvaluationFunction {
         baseFunction = base;
     }
     
-    
+    public float base_score(int player, GameState gs) {
+        return 0.04f;
+    }
+
     public float evaluate(int maxplayer, int minplayer, GameState gs) {
         GameState gs2 = gs.clone();
         gs2.forceExecuteAllActions();

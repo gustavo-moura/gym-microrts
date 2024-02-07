@@ -35,8 +35,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     protected VulcanMCTSNode tree = null;
     protected int current_iteration = 0;
             
-    public int MAXSIMULATIONTIME = 1024;
-    public int MAX_TREE_DEPTH = 10;
+    public int MAXSIMULATIONTIME = 2048; // 1024
+    public int MAX_TREE_DEPTH = 100;
     
     protected int player;
     
@@ -71,6 +71,11 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public double global_ser;
     public double global_rbf;
     public double global_last_eval;
+
+    public double[] global_scores_0;
+    public double[] global_scores_1;
+
+    public int count = 0;
 
     
     public VulcanMCTS(UnitTypeTable utt) {
@@ -447,9 +452,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         return forceExplorationOfNonSampledActions;
     }
     
-    
-    public void setForceExplorationOfNonSampledActions(boolean fensa)
-    {
+
+    public void setForceExplorationOfNonSampledActions(boolean fensa) {
         forceExplorationOfNonSampledActions = fensa;
     }    
 
@@ -504,9 +508,15 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
             double[] evals = response[0];
             double[] risks = response[1];
+            double[] scores_0 = response[2];
+            double[] scores_1 = response[3];
 
             global_evals = evals;
             global_risks = risks;
+            global_scores_0 = scores_0;  // self
+            global_scores_1 = scores_1;  // enemy
+
+            count++;
 
             int time = gs2.getTime() - gs_to_start_from.getTime();
             double local_evaluation = ef.evaluate(player, 1-player, gs2);
@@ -521,7 +531,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             double rbf = risk_bounding_function(risks);
             global_rbf = rbf;
 
-            if (ser <= rbf){
+            //if (ser <= rbf){ // correct
+            if (gs2.getTime() < 1000) { // debug enforce rbf
                 // State history satisfies the bounding function
 
                 // update the node
@@ -556,6 +567,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         boolean gameover = false;
         double[] evals = new double[MAXSIMULATIONTIME];
         double[] risks = new double[MAXSIMULATIONTIME];
+        double[] scores_0 = new double[MAXSIMULATIONTIME];
+        double[] scores_1 = new double[MAXSIMULATIONTIME];
 
         int i=0;
         do{
@@ -567,6 +580,11 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
                 double local_evaluation = ef.evaluate(player, 1-player, gs);
                 evals[i] = local_evaluation;
+                
+                double score_0 = ef.base_score(player, gs);
+                double score_1 = ef.base_score(1-player, gs);
+                scores_0[i] = score_0;
+                scores_1[i] = score_1;
 
                 double risk = 0.0f;
                 // player maximiza
@@ -583,7 +601,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         }while(!gameover && gs.getTime()<time);   
         
         // return evals and risks
-        return new double[][]{evals, risks};
+        return new double[][]{evals, risks, scores_0, scores_1};
     }
 
 
