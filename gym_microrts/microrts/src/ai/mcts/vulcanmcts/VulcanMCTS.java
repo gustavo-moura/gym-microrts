@@ -33,7 +33,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     
     protected GameState gs_to_start_from = null;
     protected VulcanMCTSNode tree = null;
-    protected int current_iteration = 0;
+    public int current_iteration = 0;
             
     public int MAXSIMULATIONTIME = 2048; // 1024
     public int MAX_TREE_DEPTH = 100;
@@ -66,16 +66,18 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     //Vulcan
     public float rbf_delta = 0.04f;
 
-    public double[] global_evals;
-    public double[] global_risks;
+    public ArrayList<Double> global_evals;
+    public ArrayList<Double> global_risks;
     public double global_ser;
     public double global_rbf;
     public double global_last_eval;
 
-    public double[] global_scores_0;
-    public double[] global_scores_1;
+    public ArrayList<Double> global_scores_0;
+    public ArrayList<Double> global_scores_1;
 
     public int count = 0;
+
+    public ArrayList<Integer> fallback_actions = new ArrayList<>();
 
     
     public VulcanMCTS(UnitTypeTable utt) {
@@ -84,8 +86,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
              new RandomBiasedAI(),
              new SimpleSqrtEvaluationFunction3(), true);
     }    
-    
-    
     public VulcanMCTS(int available_time, int max_playouts, int lookahead, int max_depth, 
                                float e_l, float discout_l,
                                float e_g, float discout_g, 
@@ -105,8 +105,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         ef = a_ef;
         forceExplorationOfNonSampledActions = fensa;
     }    
-
-    
     public VulcanMCTS(int available_time, int max_playouts, int lookahead, int max_depth, float e_l, float e_g, float e_0, AI policy, EvaluationFunction a_ef, boolean fensa) {
         super(available_time, max_playouts);
         MAXSIMULATIONTIME = lookahead;
@@ -121,8 +119,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         ef = a_ef;
         forceExplorationOfNonSampledActions = fensa;
     }    
-    
-    
     public VulcanMCTS(int available_time, int max_playouts, int lookahead, int max_depth, float e_l, float e_g, float e_0, int a_global_strategy, AI policy, EvaluationFunction a_ef, boolean fensa) {
         super(available_time, max_playouts);
         MAXSIMULATIONTIME = lookahead;
@@ -138,7 +134,114 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         ef = a_ef;
         forceExplorationOfNonSampledActions = fensa;
     }        
-    
+    public VulcanMCTSNode getTree() {
+        return tree;
+    }
+    public GameState getGameStateToStartFrom() {
+        return gs_to_start_from;
+    }
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(" + TIME_BUDGET + ", " + ITERATIONS_BUDGET + ", " + MAXSIMULATIONTIME + "," + MAX_TREE_DEPTH + "," + epsilon_l + ", " + discount_l + ", " + epsilon_g + ", " + discount_g + ", " + epsilon_0 + ", " + discount_0 + ", " + playoutPolicy + ", " + ef + ")";
+    }
+    @Override
+    public String statisticsString() {
+        return "Total runs: " + total_runs + 
+               ", runs per action: " + (total_runs/(float)total_actions_issued) + 
+               ", runs per cycle: " + (total_runs/(float)total_cycles_executed) + 
+               ", average time per cycle: " + (total_time/(float)total_cycles_executed) + 
+               ", max branching factor: " + max_actions_so_far;
+    }
+    @Override
+    public List<ParameterSpecification> getParameters() {
+        List<ParameterSpecification> parameters = new ArrayList<>();
+        
+        parameters.add(new ParameterSpecification("TimeBudget",int.class,100));
+        parameters.add(new ParameterSpecification("IterationsBudget",int.class,-1));
+        parameters.add(new ParameterSpecification("PlayoutLookahead",int.class,100));
+        parameters.add(new ParameterSpecification("MaxTreeDepth",int.class,10));
+        
+        parameters.add(new ParameterSpecification("E_l",float.class,0.3));
+        parameters.add(new ParameterSpecification("Discount_l",float.class,1.0));
+        parameters.add(new ParameterSpecification("E_g",float.class,0.0));
+        parameters.add(new ParameterSpecification("Discount_g",float.class,1.0));
+        parameters.add(new ParameterSpecification("E_0",float.class,0.4));
+        parameters.add(new ParameterSpecification("Discount_0",float.class,1.0));
+                
+        parameters.add(new ParameterSpecification("DefaultPolicy",AI.class, playoutPolicy));
+        parameters.add(new ParameterSpecification("EvaluationFunction", EvaluationFunction.class, new SimpleSqrtEvaluationFunction3()));
+
+        parameters.add(new ParameterSpecification("ForceExplorationOfNonSampledActions",boolean.class,true));
+        
+        return parameters;
+    }    
+    public int getPlayoutLookahead() {
+        return MAXSIMULATIONTIME;
+    }
+    public void setPlayoutLookahead(int a_pola) {
+        MAXSIMULATIONTIME = a_pola;
+    }
+    public int getMaxTreeDepth() {
+        return MAX_TREE_DEPTH;
+    }
+    public void setMaxTreeDepth(int a_mtd) {
+        MAX_TREE_DEPTH = a_mtd;
+    }
+    public float getE_l() {
+        return epsilon_l;
+    }
+    public void setE_l(float a_e_l) {
+        epsilon_l = a_e_l;
+    }
+    public float getDiscount_l() {
+        return discount_l;
+    }
+    public void setDiscount_l(float a_discount_l) {
+        discount_l = a_discount_l;
+    }
+    public float getE_g() {
+        return epsilon_g;
+    }
+    public void setE_g(float a_e_g) {
+        epsilon_g = a_e_g;
+    }
+    public float getDiscount_g() {
+        return discount_g;
+    }
+    public void setDiscount_g(float a_discount_g) {
+        discount_g = a_discount_g;
+    }
+    public float getE_0() {
+        return epsilon_0;
+    }
+    public void setE_0(float a_e_0) {
+        epsilon_0 = a_e_0;
+    }
+    public float getDiscount_0() {
+        return discount_0;
+    }
+    public void setDiscount_0(float a_discount_0) {
+        discount_0 = a_discount_0;
+    }
+    public AI getDefaultPolicy() {
+        return playoutPolicy;
+    }
+    public void setDefaultPolicy(AI a_dp) {
+        playoutPolicy = a_dp;
+    }
+    public EvaluationFunction getEvaluationFunction() {
+        return ef;
+    }
+    public void setEvaluationFunction(EvaluationFunction a_ef) {
+        ef = a_ef;
+    }
+    public boolean getForceExplorationOfNonSampledActions() {
+        return forceExplorationOfNonSampledActions;
+    }
+    public void setForceExplorationOfNonSampledActions(boolean fensa) {
+        forceExplorationOfNonSampledActions = fensa;
+    }    
+
     
     public void reset() {
         tree = null;
@@ -167,6 +270,10 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             if (action.isEmpty()) {
                 if (DEBUG>=1) System.out.println("VulcanMCTS: the selected action was empty! (returning a random action)");
                 action = playoutPolicy.getAction(player, gs);
+                fallback_actions.add(1);
+            }
+            else{
+                fallback_actions.add(0);
             }
             return action;
 
@@ -220,7 +327,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     
 
     public PlayerAction getBestActionSoFar() {
-        int idx = getMostVisitedActionIdx();
+        //int idx = getMostVisitedActionIdx();
+        int idx = getHighestEvaluationActionIdx();
         if (idx==-1) {
             if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty action");
             return new PlayerAction();
@@ -305,179 +413,19 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
 
     
-    public VulcanMCTSNode getTree() {
-        return tree;
-    }
-    
-    
-    public GameState getGameStateToStartFrom() {
-        return gs_to_start_from;
-    }
-    
-    
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + "(" + TIME_BUDGET + ", " + ITERATIONS_BUDGET + ", " + MAXSIMULATIONTIME + "," + MAX_TREE_DEPTH + "," + epsilon_l + ", " + discount_l + ", " + epsilon_g + ", " + discount_g + ", " + epsilon_0 + ", " + discount_0 + ", " + playoutPolicy + ", " + ef + ")";
-    }
-    
-    
-    @Override
-    public String statisticsString() {
-        return "Total runs: " + total_runs + 
-               ", runs per action: " + (total_runs/(float)total_actions_issued) + 
-               ", runs per cycle: " + (total_runs/(float)total_cycles_executed) + 
-               ", average time per cycle: " + (total_time/(float)total_cycles_executed) + 
-               ", max branching factor: " + max_actions_so_far;
-    }
-    
-    
-    @Override
-    public List<ParameterSpecification> getParameters() {
-        List<ParameterSpecification> parameters = new ArrayList<>();
-        
-        parameters.add(new ParameterSpecification("TimeBudget",int.class,100));
-        parameters.add(new ParameterSpecification("IterationsBudget",int.class,-1));
-        parameters.add(new ParameterSpecification("PlayoutLookahead",int.class,100));
-        parameters.add(new ParameterSpecification("MaxTreeDepth",int.class,10));
-        
-        parameters.add(new ParameterSpecification("E_l",float.class,0.3));
-        parameters.add(new ParameterSpecification("Discount_l",float.class,1.0));
-        parameters.add(new ParameterSpecification("E_g",float.class,0.0));
-        parameters.add(new ParameterSpecification("Discount_g",float.class,1.0));
-        parameters.add(new ParameterSpecification("E_0",float.class,0.4));
-        parameters.add(new ParameterSpecification("Discount_0",float.class,1.0));
-                
-        parameters.add(new ParameterSpecification("DefaultPolicy",AI.class, playoutPolicy));
-        parameters.add(new ParameterSpecification("EvaluationFunction", EvaluationFunction.class, new SimpleSqrtEvaluationFunction3()));
-
-        parameters.add(new ParameterSpecification("ForceExplorationOfNonSampledActions",boolean.class,true));
-        
-        return parameters;
-    }    
-    
-    
-    public int getPlayoutLookahead() {
-        return MAXSIMULATIONTIME;
-    }
-    
-    
-    public void setPlayoutLookahead(int a_pola) {
-        MAXSIMULATIONTIME = a_pola;
-    }
-
-
-    public int getMaxTreeDepth() {
-        return MAX_TREE_DEPTH;
-    }
-    
-    
-    public void setMaxTreeDepth(int a_mtd) {
-        MAX_TREE_DEPTH = a_mtd;
-    }
-    
-    
-    public float getE_l() {
-        return epsilon_l;
-    }
-    
-    
-    public void setE_l(float a_e_l) {
-        epsilon_l = a_e_l;
-    }
-
-
-    public float getDiscount_l() {
-        return discount_l;
-    }
-    
-    
-    public void setDiscount_l(float a_discount_l) {
-        discount_l = a_discount_l;
-    }
-
-
-    public float getE_g() {
-        return epsilon_g;
-    }
-    
-    
-    public void setE_g(float a_e_g) {
-        epsilon_g = a_e_g;
-    }
-
-
-    public float getDiscount_g() {
-        return discount_g;
-    }
-    
-    
-    public void setDiscount_g(float a_discount_g) {
-        discount_g = a_discount_g;
-    }
-
-
-    public float getE_0() {
-        return epsilon_0;
-    }
-    
-    
-    public void setE_0(float a_e_0) {
-        epsilon_0 = a_e_0;
-    }
-
-
-    public float getDiscount_0() {
-        return discount_0;
-    }
-    
-    
-    public void setDiscount_0(float a_discount_0) {
-        discount_0 = a_discount_0;
-    }
-    
-     
-    public AI getDefaultPolicy() {
-        return playoutPolicy;
-    }
-    
-    
-    public void setDefaultPolicy(AI a_dp) {
-        playoutPolicy = a_dp;
-    }
-    
-    
-    public EvaluationFunction getEvaluationFunction() {
-        return ef;
-    }
-    
-    
-    public void setEvaluationFunction(EvaluationFunction a_ef) {
-        ef = a_ef;
-    }
-    
-    
-    public boolean getForceExplorationOfNonSampledActions() {
-        return forceExplorationOfNonSampledActions;
-    }
-
-
-    public void setForceExplorationOfNonSampledActions(boolean fensa) {
-        forceExplorationOfNonSampledActions = fensa;
-    }    
-
-
     // Vulcan
+
 
     public void setRBFDelta(float rbf_delta) {
         this.rbf_delta = rbf_delta;
     }
 
     
-    public double sequence_execution_risk(double[] risks){
+    public double sequence_execution_risk(ArrayList<Double> risks){
         
         double prod_safety = 1;
-        for (int i = 0; i < risks.length; i++){
-            prod_safety = prod_safety * (1 - (risks[i] / 10));
+        for (int i = 0; i < risks.size(); i++){
+            prod_safety = prod_safety * (1 - (risks.get(i) / 10));
         }
         
         double ser = (1 - prod_safety) / prod_safety;
@@ -486,11 +434,11 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
     
 
-    public double risk_bounding_function(double[] risks){
+    public double risk_bounding_function(ArrayList<Double> risks){
         double prod_risk = 0;
 
-        for (int i = 0; i < risks.length; i++){
-            prod_risk = prod_risk + (Math.pow(0.99, i) * (risks[i]/10));
+        for (int i = 0; i < risks.size(); i++){
+            prod_risk = prod_risk + (Math.pow(0.99, i) * (risks.get(i) / 10));
         }
         
         // sufficient local conditions
@@ -512,12 +460,12 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
         if (leaf!=null) {            
             GameState gs2 = leaf.gs.clone();
-            double[][] response = simulate_evaluated(gs2, gs2.getTime() + MAXSIMULATIONTIME, player);
+            ArrayList<ArrayList<Double>> response = simulate_evaluated(gs2, gs2.getTime() + MAXSIMULATIONTIME, player);
 
-            double[] evals = response[0];
-            double[] risks = response[1];
-            double[] scores_0 = response[2];
-            double[] scores_1 = response[3];
+            ArrayList<Double> evals = response.get(0);
+            ArrayList<Double> risks = response.get(1);
+            ArrayList<Double> scores_0 = response.get(2);
+            ArrayList<Double> scores_1 = response.get(3);
 
             global_evals = evals;
             global_risks = risks;
@@ -571,12 +519,12 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
 
 
-    public double[][] simulate_evaluated(GameState gs, int time, int player) throws Exception {
+    public ArrayList<ArrayList<Double>> simulate_evaluated(GameState gs, int time, int player) throws Exception {
         boolean gameover = false;
-        double[] evals = new double[MAXSIMULATIONTIME];
-        double[] risks = new double[MAXSIMULATIONTIME];
-        double[] scores_0 = new double[MAXSIMULATIONTIME];
-        double[] scores_1 = new double[MAXSIMULATIONTIME];
+        ArrayList<Double> evals = new ArrayList<>();
+        ArrayList<Double> risks = new ArrayList<>();
+        ArrayList<Double> scores_0 = new ArrayList<>();
+        ArrayList<Double> scores_1 = new ArrayList<>();
 
         int i=0;
         do{
@@ -587,12 +535,12 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 gs.issue(playoutPolicy.getAction(1, gs));
 
                 double local_evaluation = ef.evaluate(player, 1-player, gs);
-                evals[i] = local_evaluation;
+                evals.add(local_evaluation);
                 
                 double score_0 = ef.base_score(player, gs);
                 double score_1 = ef.base_score(1-player, gs);
-                scores_0[i] = score_0;
-                scores_1[i] = score_1;
+                scores_0.add(score_0);
+                scores_1.add(score_1);
 
                 double risk = 0.0f;
                 // player maximiza
@@ -602,14 +550,22 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 else{ // corre risco entre [0,1]
                     risk = Math.abs(local_evaluation);
                 }
-                risks[i] = risk;
+                risks.add(risk);
 
                 i++;
             }
         }while(!gameover && gs.getTime()<time);   
         
         // return evals and risks
-        return new double[][]{evals, risks, scores_0, scores_1};
+        //return new {evals, risks, scores_0, scores_1};
+    
+        ArrayList<ArrayList<Double>> response = new ArrayList<>();
+        response.add(evals);
+        response.add(risks);
+        response.add(scores_0);
+        response.add(scores_1);
+
+        return response;
     }
 
 

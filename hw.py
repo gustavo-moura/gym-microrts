@@ -59,12 +59,15 @@ for i in trange(max_steps):
 
         save_video(images, path=out_path/'experiment.mp4')
 
+        pdb.set_trace()
+
+        # FIX np.array(evals_history, dtype='object') to avoid error
+        # ValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (1685,) + inhomogeneous part.
         np.save(out_path/'evals_history', np.array(evals_history))
         np.save(out_path/'risks_history', np.array(risks_history))
         np.save(out_path/'scores_0', np.array(scores_0))
         np.save(out_path/'scores_1', np.array(scores_1))
 
-        pdb.set_trace()
 
         break
 
