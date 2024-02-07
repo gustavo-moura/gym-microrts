@@ -161,7 +161,15 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         if (gs.canExecuteAnyAction(player)) {
             startNewComputation(player,gs.clone());
             computeDuringOneGameFrame();
-            return getBestActionSoFar();
+
+            PlayerAction action = getBestActionSoFar();
+
+            if (action.isEmpty()) {
+                if (DEBUG>=1) System.out.println("VulcanMCTS: the selected action was empty! (returning a random action)");
+                action = playoutPolicy.getAction(player, gs);
+            }
+            return action;
+
         } else {
             return new PlayerAction();        
         }       
@@ -214,7 +222,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public PlayerAction getBestActionSoFar() {
         int idx = getMostVisitedActionIdx();
         if (idx==-1) {
-            if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty asction");
+            if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty action");
             return new PlayerAction();
         }
         if (DEBUG>=2) tree.showNode(0,1,ef);
@@ -451,13 +459,13 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public boolean getForceExplorationOfNonSampledActions() {
         return forceExplorationOfNonSampledActions;
     }
-    
+
 
     public void setForceExplorationOfNonSampledActions(boolean fensa) {
         forceExplorationOfNonSampledActions = fensa;
     }    
 
-    
+
     // Vulcan
 
     public void setRBFDelta(float rbf_delta) {

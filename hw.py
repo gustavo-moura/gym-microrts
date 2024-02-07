@@ -64,6 +64,8 @@ for i in trange(max_steps):
         np.save(out_path/'scores_0', np.array(scores_0))
         np.save(out_path/'scores_1', np.array(scores_1))
 
+        pdb.set_trace()
+
         break
 
 envs.close()
