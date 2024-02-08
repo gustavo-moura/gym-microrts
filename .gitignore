@@ -12,6 +12,7 @@ benchmark/scripts/*
 videos
 dataset.pickle
 runs
+temp*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

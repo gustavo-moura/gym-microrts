@@ -4,7 +4,7 @@ from gym_microrts import microrts_ai
 import numpy as np
 import pdb
 from tqdm import trange
-from gus.utils import print_winner, plotly_sers_rbfs, save_video
+from gus.utils import print_winner, plotly_sers_rbfs, save_video, save_numpy_resize
 from pathlib import Path
 
 ai1s = [microrts_ai.vulcanMCTSAI]
@@ -59,15 +59,13 @@ for i in trange(max_steps):
 
         save_video(images, path=out_path/'experiment.mp4')
 
+        save_numpy_resize(evals_history, out_path/'evals_history.npy')
+        save_numpy_resize(risks_history, out_path/'risks_history.npy')
+        save_numpy_resize(scores_0, out_path/'scores_0.npy')
+        save_numpy_resize(scores_1, out_path/'scores_1.npy')
+
         pdb.set_trace()
-
-        # FIX np.array(evals_history, dtype='object') to avoid error
-        # ValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (1685,) + inhomogeneous part.
-        np.save(out_path/'evals_history', np.array(evals_history))
-        np.save(out_path/'risks_history', np.array(risks_history))
-        np.save(out_path/'scores_0', np.array(scores_0))
-        np.save(out_path/'scores_1', np.array(scores_1))
-
+        
 
         break
 
