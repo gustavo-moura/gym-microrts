@@ -10,7 +10,9 @@ from jpype.types import JArray
 import pickle as pkl
 
 ai1s = [microrts_ai.vulcanMCTSAI]
-ai2s = [microrts_ai.naiveMCTSAI]
+#ai2s = [microrts_ai.naiveMCTSAI]
+#ai2s = [microrts_ai.coacAI]
+ai2s = [microrts_ai.lightRushAI]
 
 max_steps = 2000
 envs = MicroRTSBotVecEnv(
@@ -47,6 +49,7 @@ rfs = JArray(RewardFunctionInterface)(
     ]
 )
 bot0.setRewardFunctions(rfs)
+# bot0.setRBFDelta(0.01)
 
 
 evals_history = []
@@ -63,8 +66,14 @@ raw_rewards = []
 
 vulcan_rewards = []
 
+fallbacks = []
+
 for i in trange(max_steps):
-    next_obs, reward, done, infos = envs.step([[[0, 0, 0, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 0, 0],]])
+    try:
+        next_obs, reward, done, infos = envs.step([[[0, 0, 0, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 0, 0],]])
+    except Exception as e:
+        print(e)
+        pdb.set_trace()
 
     raw_rewards.append(infos[0]['raw_rewards'])
 
@@ -83,15 +92,17 @@ for i in trange(max_steps):
 
     vulcan_rewards.append(np.array(bot0.global_rewards))
 
+    fallbacks.append(bot0.fallback_actions)
+
     if done:
         print_winner(infos, ai1s, ai2s)
-        plotly_sers_rbfs(sers0, rbfs0)
 
         out_path = Path('./videos/experiment')
         out_path.mkdir(parents=True, exist_ok=True)
 
         save_video(images, path=out_path/'experiment.mp4')
 
+        plotly_sers_rbfs(sers0, rbfs0, save_path=out_path/'plot_sers_rbfs.html')
         save_numpy_resize(evals_history, out_path/'evals_history.npy')
         save_numpy_resize(risks_history, out_path/'risks_history.npy')
         save_numpy_resize(scores_0, out_path/'scores_0.npy')

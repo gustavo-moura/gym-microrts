@@ -16,18 +16,37 @@ def print_winner(infos, ai1s, ai2s):
             print("Winner: Draw")
 
 
-def plotly_sers_rbfs(sers, rbfs, title_a="SER", title_b="RBF", title="SER and RBF"):
+def plotly_sers_rbfs(sers, rbfs, title_a="SER", title_b="RBF", title="SER and RBF", mode='lines+markers', save_path='temp-plot.html'):
     """Plot two lists of values"""
     plotly.offline.plot(
         {
             "data": [
-                plotly.graph_objs.Scatter(x=list(range(len(sers))), y=sers, name=title_a),
-                plotly.graph_objs.Scatter(x=list(range(len(rbfs))), y=rbfs, name=title_b),
+                plotly.graph_objs.Scatter(x=list(range(len(sers))), y=sers, name=title_a, mode=mode),
+                plotly.graph_objs.Scatter(x=list(range(len(rbfs))), y=rbfs, name=title_b, mode=mode),
             ],
             "layout": plotly.graph_objs.Layout(
                 title=title, 
                 xaxis={"title": "timestep"},
                 yaxis={"title": "value"},
+            ),
+        }, 
+        auto_open=True,
+        filename=str(save_path),
+    )
+
+# plot points
+    
+def plotly_points(points, title="Points"):
+    """Plot a list of points"""
+    plotly.offline.plot(
+        {
+            "data": [
+                plotly.graph_objs.Scatter(x=[p[0] for p in points], y=[p[1] for p in points], mode='markers'),
+            ],
+            "layout": plotly.graph_objs.Layout(
+                title=title, 
+                xaxis={"title": "x"},
+                yaxis={"title": "y"},
             ),
         }, 
         auto_open=True

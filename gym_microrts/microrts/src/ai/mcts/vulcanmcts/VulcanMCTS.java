@@ -33,6 +33,9 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
        
     Random r = new Random();
     public AI playoutPolicy = new RandomBiasedAI();
+
+    public AI[] ais;
+
     protected long max_actions_so_far = 0;
     
     protected GameState gs_to_start_from = null;
@@ -68,7 +71,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public long total_time = 0;
     
     //Vulcan
-    public float rbf_delta = 0.04f;
+    public float rbf_delta = 0.01f;
 
     public ArrayList<Double> global_evals;
     public ArrayList<Double> global_risks;
@@ -99,6 +102,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
              0.3f, 0.0f, 0.4f,
              new RandomBiasedAI(),
              new SimpleSqrtEvaluationFunction3(), true);
+        startAIs();
     }    
     public VulcanMCTS(int available_time, int max_playouts, int lookahead, int max_depth, 
                                float e_l, float discout_l,
@@ -118,6 +122,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         discount_0 = discout_0;
         ef = a_ef;
         forceExplorationOfNonSampledActions = fensa;
+        startAIs();
     }    
     public VulcanMCTS(int available_time, int max_playouts, int lookahead, int max_depth, float e_l, float e_g, float e_0, AI policy, EvaluationFunction a_ef, boolean fensa) {
         super(available_time, max_playouts);
@@ -132,6 +137,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         discount_0 = 1.0f;
         ef = a_ef;
         forceExplorationOfNonSampledActions = fensa;
+        startAIs();
     }    
     public VulcanMCTS(int available_time, int max_playouts, int lookahead, int max_depth, float e_l, float e_g, float e_0, int a_global_strategy, AI policy, EvaluationFunction a_ef, boolean fensa) {
         super(available_time, max_playouts);
@@ -147,6 +153,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         global_strategy = a_global_strategy;
         ef = a_ef;
         forceExplorationOfNonSampledActions = fensa;
+        startAIs();
     }        
     public VulcanMCTSNode getTree() {
         return tree;
@@ -273,6 +280,22 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }    
     
     
+    private void startAIs(){
+        int ITERATIONS_BUDGET = 10;
+        ais = new AI[5];
+        ais[0] = new PassiveAI();
+        ais[1] = new RandomAI();
+        ais[2] = new RandomBiasedAI();
+        ais[3] = new RandomBiasedSingleUnitAI();
+        ais[4] = new RandomNoAttackAI(ITERATIONS_BUDGET);
+    }
+    
+    public AI selectRandomAi() {
+        int rnd = new Random().nextInt(ais.length);
+        return ais[rnd];
+    }
+
+    
     public PlayerAction getAction(int player, GameState gs) throws Exception
     {
         if (gs.canExecuteAnyAction(player)) {
@@ -283,7 +306,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
             if (action.isEmpty()) {
                 if (DEBUG>=1) System.out.println("VulcanMCTS: the selected action was empty! (returning a random action)");
-                action = playoutPolicy.getAction(player, gs);
+                AI selectedAi = selectRandomAi();
+                action = selectedAi.getAction(player, gs);
                 fallback_actions.add(1);
             }
             else{
@@ -438,7 +462,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
 
     
-    public double sequence_execution_risk(ArrayList<Double> risks){
+    public double sequence_execution_risk_old(ArrayList<Double> risks){
         
         double prod_safety = 1;
         for (int i = 0; i < risks.size(); i++){
@@ -449,9 +473,23 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         
         return ser;
     }
+
+    public double sequence_execution_risk(ArrayList<Double> risks){
+        double prod_safety = 1;
+
+        for (int i = risks.size() - 1; i >= risks.size() - 5; i--){
+            prod_safety = prod_safety * (1 - (risks.get(i) / 10));
+        }
+        
+        double ser = (1 - prod_safety) / prod_safety;
+        
+        return ser;
+    }
+    
     
 
-    public double risk_bounding_function(ArrayList<Double> risks){
+    public double risk_bounding_function_old(ArrayList<Double> risks){
+        // 2023
         double prod_risk = 0;
 
         for (int i = 0; i < risks.size(); i++){
@@ -465,6 +503,24 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         // rbf_delta = 1.0f;
 
         double rbf = rbf_delta * slc; 
+        // System.out.println("rbf: " + rbf);
+
+        return rbf;
+    }
+
+    
+    public double risk_bounding_function(ArrayList<Double> evals){
+        // RBF nova, igual no evals.ipynb
+        double max_risk = 0;
+
+        for (int i = 0; i < evals.size(); i++){
+            max_risk = max_risk + (Math.pow(0.99, i) * (evals.get(i)));
+        }
+        
+        // sufficient local conditions
+        double slc = max_risk;
+
+        double rbf = 1 + rbf_delta * slc; 
         // System.out.println("rbf: " + rbf);
 
         return rbf;
@@ -508,11 +564,11 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             double ser = sequence_execution_risk(risks);
             global_ser = ser;
 
-            double rbf = risk_bounding_function(risks);
+            double rbf = risk_bounding_function(evals);
             global_rbf = rbf;
 
-            //if (ser <= rbf){ // correct
-            if (gs2.getTime() < 1000) { // debug enforce rbf
+            //if (gs2.getTime() < 1000) { // debug enforce rbf
+            if (ser <= rbf){ // correct
                 // State history satisfies the bounding function
 
                 // update the node
@@ -564,10 +620,12 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             if (gs.isComplete()) {
                 gameover = gs.cycle();
             } else {
+                // Select random ai
+                AI selectedAi = selectRandomAi();
 
                 // Issue action for both players
-                pa1 = playoutPolicy.getAction(0, gs);
-                pa2 = playoutPolicy.getAction(1, gs);
+                pa1 = selectedAi.getAction(0, gs);
+                pa2 = selectedAi.getAction(1, gs);
                 gs.issue(pa1);
                 gs.issue(pa2);
                 TraceEntry te  = new TraceEntry(gs.getPhysicalGameState().clone(), gs.getTime());
