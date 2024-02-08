@@ -10,14 +10,18 @@ import ai.core.AIWithComputationBudget;
 import ai.core.ParameterSpecification;
 import ai.evaluation.EvaluationFunction;
 import ai.evaluation.SimpleSqrtEvaluationFunction3;
+import ai.rewardfunction.RewardFunctionInterface;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import rts.GameState;
 import rts.PlayerAction;
+import rts.TraceEntry;
 import rts.units.UnitTypeTable;
 import ai.core.InterruptibleAI;
 import java.lang.Math;
+import java.lang.reflect.Array;
 
 /**
  *
@@ -75,11 +79,21 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public ArrayList<Double> global_scores_0;
     public ArrayList<Double> global_scores_1;
 
+    public ArrayList<ArrayList<Double>> global_rewards;
+
     public int count = 0;
 
     public ArrayList<Integer> fallback_actions = new ArrayList<>();
-
     
+    public RewardFunctionInterface[] rfs;
+
+    // storage
+    double[] rewards;
+    boolean[] dones;
+    PlayerAction pa1;
+    PlayerAction pa2;
+    
+
     public VulcanMCTS(UnitTypeTable utt) {
         this(100,-1,100,10,
              0.3f, 0.0f, 0.4f,
@@ -415,6 +429,9 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     
     // Vulcan
 
+    public void setRewardFunctions(RewardFunctionInterface[] rfs) {
+        this.rfs = rfs;
+    }
 
     public void setRBFDelta(float rbf_delta) {
         this.rbf_delta = rbf_delta;
@@ -466,6 +483,13 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             ArrayList<Double> risks = response.get(1);
             ArrayList<Double> scores_0 = response.get(2);
             ArrayList<Double> scores_1 = response.get(3);
+
+            ArrayList<ArrayList<Double>> tmp_rewards = new ArrayList<>();
+            for (int i = 4; i < response.size(); i++) {
+                tmp_rewards.add(response.get(i));
+            }
+            global_rewards = tmp_rewards;
+
 
             global_evals = evals;
             global_risks = risks;
@@ -526,22 +550,41 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         ArrayList<Double> scores_0 = new ArrayList<>();
         ArrayList<Double> scores_1 = new ArrayList<>();
 
-        int i=0;
+        ArrayList<Double> rewards0 = new ArrayList<>();
+        ArrayList<Double> rewards1 = new ArrayList<>();
+        ArrayList<Double> rewards2 = new ArrayList<>();
+        ArrayList<Double> rewards3 = new ArrayList<>();
+        ArrayList<Double> rewards4 = new ArrayList<>();
+        ArrayList<Double> rewards5 = new ArrayList<>();
+
+        rewards = new double[rfs.length];
+        dones = new boolean[rfs.length];
+
         do{
             if (gs.isComplete()) {
                 gameover = gs.cycle();
             } else {
-                gs.issue(playoutPolicy.getAction(0, gs));
-                gs.issue(playoutPolicy.getAction(1, gs));
 
+                // Issue action for both players
+                pa1 = playoutPolicy.getAction(0, gs);
+                pa2 = playoutPolicy.getAction(1, gs);
+                gs.issue(pa1);
+                gs.issue(pa2);
+                TraceEntry te  = new TraceEntry(gs.getPhysicalGameState().clone(), gs.getTime());
+                te.addPlayerAction(pa1.clone());
+                te.addPlayerAction(pa2.clone());
+
+                // Evaluate state E()
                 double local_evaluation = ef.evaluate(player, 1-player, gs);
                 evals.add(local_evaluation);
                 
+                // Evaluate scores
                 double score_0 = ef.base_score(player, gs);
                 double score_1 = ef.base_score(1-player, gs);
                 scores_0.add(score_0);
                 scores_1.add(score_1);
 
+                // Evaluate risk
                 double risk = 0.0f;
                 // player maximiza
                 if (local_evaluation >= 0){ // nao corre risco
@@ -552,18 +595,35 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 }
                 risks.add(risk);
 
-                i++;
+                // Evaluate rewards
+                for (int i = 0; i < rewards.length; i++) {
+                    rfs[i].computeReward(player, 1 - player, te, gs);
+                    dones[i] = rfs[i].isDone();
+                    rewards[i] = rfs[i].getReward();
+                }
+                rewards0.add(rewards[0]);
+                rewards1.add(rewards[1]);
+                rewards2.add(rewards[2]);
+                rewards3.add(rewards[3]);
+                rewards4.add(rewards[4]);
+                rewards5.add(rewards[5]);
+
             }
-        }while(!gameover && gs.getTime()<time);   
+        }while(!gameover && gs.getTime()<time);
+        
         
         // return evals and risks
-        //return new {evals, risks, scores_0, scores_1};
-    
         ArrayList<ArrayList<Double>> response = new ArrayList<>();
         response.add(evals);
         response.add(risks);
         response.add(scores_0);
         response.add(scores_1);
+        response.add(rewards0);
+        response.add(rewards1);
+        response.add(rewards2);
+        response.add(rewards3);
+        response.add(rewards4);
+        response.add(rewards5);
 
         return response;
     }

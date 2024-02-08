@@ -44,10 +44,15 @@ def save_video(images, path='videos/test.mp4'):
     print("Video saved")
     return
 
+
 def save_numpy_resize(arr, path):
     """Save a list of numpy arrays to a file, padding them to the same length"""
     counts = [len(a) for a in arr]
     max_e = max(counts)
     np_nan_arr = np.full(max_e, np.nan)
     arr = [np.concatenate([a, np_nan_arr[len(a):]]) for a in arr]
+    np.save(path, np.array(arr))
+
+def save_numpy(arr, path):
+    """Save a list of numpy arrays to a file"""
     np.save(path, np.array(arr))

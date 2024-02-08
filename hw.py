@@ -4,8 +4,10 @@ from gym_microrts import microrts_ai
 import numpy as np
 import pdb
 from tqdm import trange
-from gus.utils import print_winner, plotly_sers_rbfs, save_video, save_numpy_resize
+from gus.utils import print_winner, plotly_sers_rbfs, save_video, save_numpy_resize, save_numpy
 from pathlib import Path
+from jpype.types import JArray
+import pickle as pkl
 
 ai1s = [microrts_ai.vulcanMCTSAI]
 ai2s = [microrts_ai.naiveMCTSAI]
@@ -21,8 +23,31 @@ envs = MicroRTSBotVecEnv(
 )
 
 envs.reset()
+
+# setup the bot0
 bot0 = envs.vec_client.botClients[0].ai1
-bot1 = envs.vec_client.botClients[0].ai2
+from ai.rewardfunction import (
+    AttackRewardFunction,
+    ProduceBuildingRewardFunction,
+    ProduceCombatUnitRewardFunction,
+    ProduceWorkerRewardFunction,
+    ResourceGatherRewardFunction,
+    RewardFunctionInterface,
+    WinLossRewardFunction,
+)
+
+rfs = JArray(RewardFunctionInterface)(
+    [
+        WinLossRewardFunction(),
+        ResourceGatherRewardFunction(),
+        ProduceWorkerRewardFunction(),
+        ProduceBuildingRewardFunction(),
+        AttackRewardFunction(),
+        ProduceCombatUnitRewardFunction()
+    ]
+)
+bot0.setRewardFunctions(rfs)
+
 
 evals_history = []
 sers0 = []
@@ -34,8 +59,14 @@ scores_1 = []
 
 images = []
 
+raw_rewards = []
+
+vulcan_rewards = []
+
 for i in trange(max_steps):
     next_obs, reward, done, infos = envs.step([[[0, 0, 0, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 0, 0],]])
+
+    raw_rewards.append(infos[0]['raw_rewards'])
 
     img = envs.render(mode='rgb_array')
     images.append(img)
@@ -50,6 +81,8 @@ for i in trange(max_steps):
     scores_0.append(bot0.global_scores_0)
     scores_1.append(bot0.global_scores_1)
 
+    vulcan_rewards.append(np.array(bot0.global_rewards))
+
     if done:
         print_winner(infos, ai1s, ai2s)
         plotly_sers_rbfs(sers0, rbfs0)
@@ -63,6 +96,9 @@ for i in trange(max_steps):
         save_numpy_resize(risks_history, out_path/'risks_history.npy')
         save_numpy_resize(scores_0, out_path/'scores_0.npy')
         save_numpy_resize(scores_1, out_path/'scores_1.npy')
+
+        save_numpy(raw_rewards, out_path/'raw_rewards.npy')
+        with open(out_path/'vulcan_rewards.pkl', 'wb') as file: pkl.dump(vulcan_rewards, file)
 
         pdb.set_trace()
         
