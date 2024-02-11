@@ -342,6 +342,8 @@ class MicroRTSBotVecEnv(MicroRTSGridModeVecEnv):
         self.actions = actions
 
     def step_wait(self):
+        # print("self.actions: ", self.actions)
+        # print("self.num_envs: ", self.num_envs)
         responses = self.vec_client.gameStep(self.actions, [0 for _ in range(self.num_envs)])
         raw_obs, reward, done = np.ones((self.num_envs, 2)), np.array(responses.reward), np.array(responses.done)
         infos = [{"raw_rewards": item} for item in reward]

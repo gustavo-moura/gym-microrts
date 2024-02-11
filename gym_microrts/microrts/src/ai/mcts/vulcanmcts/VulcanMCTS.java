@@ -365,8 +365,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     
 
     public PlayerAction getBestActionSoFar() {
-        //int idx = getMostVisitedActionIdx();
-        int idx = getHighestEvaluationActionIdx();
+        int idx = getMostVisitedActionIdx();
+        //int idx = getHighestEvaluationActionIdx();
         if (idx==-1) {
             if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty action");
             return new PlayerAction();
@@ -474,11 +474,27 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         return ser;
     }
 
-    public double sequence_execution_risk(ArrayList<Double> risks){
+    public double sequence_execution_risk(ArrayList<Double> evals){
+        if (DEBUG>=2) System.out.println("sequence_execution_risk...");
+        if (DEBUG>=2) System.out.println("evals: " + evals);
+
         double prod_safety = 1;
 
-        for (int i = risks.size() - 1; i >= risks.size() - 5; i--){
-            prod_safety = prod_safety * (1 - (risks.get(i) / 10));
+        // Evaluate risk
+        for (int i = evals.size() - 1; i >= Math.max(evals.size() - 5, 0); i--){
+            if (DEBUG>=2) System.out.println("i: " + i + ", evals.get(i): " + evals.get(i));
+
+            double risk = 0.0f;
+            double local_evaluation = evals.get(i);
+            if (local_evaluation >= 0){ // nao corre risco
+                risk = 0.0f;
+            }
+            else{ // corre risco entre [0,1]
+                risk = Math.abs(local_evaluation);
+            }
+
+            // produtorio
+            prod_safety = prod_safety * (1 - (risk / 10));
         }
         
         double ser = (1 - prod_safety) / prod_safety;
@@ -510,6 +526,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
     
     public double risk_bounding_function(ArrayList<Double> evals){
+        if (DEBUG>=2) System.out.println("risk_bounding_function...");
+
         // RBF nova, igual no evals.ipynb
         double max_risk = 0;
 
@@ -528,23 +546,30 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
 
     public boolean iteration(int player) throws Exception {
-        
+        if (DEBUG>=2) System.out.println("iteration...");
         VulcanMCTSNode leaf = tree.selectLeaf(player, 1-player, epsilon_l, epsilon_g, epsilon_0, global_strategy, MAX_TREE_DEPTH, current_iteration++);
 
-        if (leaf!=null) {            
+        if (leaf!=null) {  
+            if (DEBUG>=2) System.out.println("leaf...");
+          
             GameState gs2 = leaf.gs.clone();
             ArrayList<ArrayList<Double>> response = simulate_evaluated(gs2, gs2.getTime() + MAXSIMULATIONTIME, player);
+            if (DEBUG>=2) System.out.println("a...");
 
             ArrayList<Double> evals = response.get(0);
             ArrayList<Double> risks = response.get(1);
             ArrayList<Double> scores_0 = response.get(2);
             ArrayList<Double> scores_1 = response.get(3);
+            if (DEBUG>=2) System.out.println("b...");
+
+            if (DEBUG>=2) System.out.println("response.size():" + response.size());
 
             ArrayList<ArrayList<Double>> tmp_rewards = new ArrayList<>();
             for (int i = 4; i < response.size(); i++) {
                 tmp_rewards.add(response.get(i));
             }
             global_rewards = tmp_rewards;
+            if (DEBUG>=2) System.out.println("c...");
 
 
             global_evals = evals;
@@ -561,13 +586,15 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             double evaluation = local_evaluation * Math.pow(0.99, time/10.0);
 
             //VULCAN: if simulated states history violates the bounding function then delete node
-            double ser = sequence_execution_risk(risks);
+            double ser = sequence_execution_risk(evals);
             global_ser = ser;
 
             double rbf = risk_bounding_function(evals);
             global_rbf = rbf;
 
             //if (gs2.getTime() < 1000) { // debug enforce rbf
+            if (DEBUG>=2) System.out.println("starting comparison for vulcan SER <= RBF...");
+
             if (ser <= rbf){ // correct
                 // State history satisfies the bounding function
 
@@ -582,6 +609,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             
             }
             else{
+                if (DEBUG>=2) System.out.println("violates bounding function, removing node from tree...");
                 // State history violates the bounding function
                 // delete child
                 leaf.parent.children.remove(leaf);
@@ -592,6 +620,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             
         } else {
             // no actions to choose from :)
+
             System.err.println(this.getClass().getSimpleName() + ": claims there are no more leafs to explore...");
             return false;
         }
@@ -600,6 +629,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
 
     public ArrayList<ArrayList<Double>> simulate_evaluated(GameState gs, int time, int player) throws Exception {
+        if (DEBUG>=2) System.out.println("simulate_evaluated...");
         boolean gameover = false;
         ArrayList<Double> evals = new ArrayList<>();
         ArrayList<Double> risks = new ArrayList<>();
@@ -668,7 +698,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
             }
         }while(!gameover && gs.getTime()<time);
-        
+        if (DEBUG>=2) System.out.println("finished simulation...");
+
         
         // return evals and risks
         ArrayList<ArrayList<Double>> response = new ArrayList<>();
