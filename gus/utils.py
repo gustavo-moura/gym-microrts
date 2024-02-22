@@ -111,3 +111,29 @@ def get_lasts(arr):
     lasts = np.array(lasts)
     return lasts
 
+def append_bot_results(bot, results, infos):
+    results['evals_history'].append(np.array(bot.global_evals))
+    results['sers0'].append(np.array(bot.global_ser))
+    results['risks_history'].append(np.array(bot.global_risks))
+    results['rbfs0'].append(np.array(bot.global_rbf))
+    results['scores_0'].append(np.array(bot.global_scores_0))
+    results['scores_1'].append(np.array(bot.global_scores_1))
+    results['fallbacks'].append(np.array(bot.fallback_actions))
+    results['vulcan_rewards'].append(np.array(bot.global_rewards))
+    results['raw_rewards'].append(infos[0]['raw_rewards'])
+    return results
+
+
+def treat_fallback_actions(fallbacks):
+    
+    actions = np.empty(len(fallbacks))
+    actions.fill(-1)
+
+    last_len = 0
+
+    for i, fallback_cummulative in enumerate(fallbacks):
+        if len(fallback_cummulative) > last_len:
+            actions[i] = fallback_cummulative[-1]
+            last_len = len(fallback_cummulative)
+
+    return actions

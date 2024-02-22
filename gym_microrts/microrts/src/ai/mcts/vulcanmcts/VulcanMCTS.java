@@ -90,6 +90,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     
     public RewardFunctionInterface[] rfs;
 
+    public double global_final_reward;
+
     // storage
     double[] rewards;
     boolean[] dones;
@@ -290,6 +292,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         ais[4] = new RandomNoAttackAI(ITERATIONS_BUDGET);
     }
     
+    
     public AI selectRandomAi() {
         int rnd = new Random().nextInt(ais.length);
         return ais[rnd];
@@ -457,6 +460,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         this.rfs = rfs;
     }
 
+    
     public void setRBFDelta(float rbf_delta) {
         this.rbf_delta = rbf_delta;
     }
@@ -474,6 +478,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         return ser;
     }
 
+    
     public double sequence_execution_risk(ArrayList<Double> evals){
         if (DEBUG>=2) System.out.println("sequence_execution_risk...");
         if (DEBUG>=2) System.out.println("evals: " + evals);
@@ -503,7 +508,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
     
     
-
     public double risk_bounding_function_old(ArrayList<Double> risks){
         // 2023
         double prod_risk = 0;
@@ -515,11 +519,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         // sufficient local conditions
         double slc = (1 - prod_risk) / (prod_risk * 100);
 
-        // overriting rbf_delta
-        // rbf_delta = 1.0f;
-
         double rbf = rbf_delta * slc; 
-        // System.out.println("rbf: " + rbf);
 
         return rbf;
     }
@@ -528,7 +528,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public double risk_bounding_function(ArrayList<Double> evals){
         if (DEBUG>=2) System.out.println("risk_bounding_function...");
 
-        // RBF nova, igual no evals.ipynb
         double max_risk = 0;
 
         for (int i = 0; i < evals.size(); i++){
@@ -539,38 +538,46 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         double slc = max_risk;
 
         double rbf = 1 + rbf_delta * slc; 
-        // System.out.println("rbf: " + rbf);
 
         return rbf;
     }
 
 
+    public double calculate_reward(ArrayList<ArrayList<Double>> rewards){
+        double[] reward_weights = {10.0, 1.0, 1.0, 0.2, 1.0, 4.0};
+        double final_reward = 0;
+
+        for (int j = 0; j < rewards.size(); j++){
+            ArrayList<Double> element_reward = rewards.get(j);
+            double weight = reward_weights[j];
+            for (int i = 0; i < element_reward.size(); i++){
+                final_reward = final_reward + (Math.pow(0.99, i) * element_reward.get(i) * weight);
+            }
+        }
+
+        return final_reward;
+    }
+
+    
     public boolean iteration(int player) throws Exception {
-        if (DEBUG>=2) System.out.println("iteration...");
         VulcanMCTSNode leaf = tree.selectLeaf(player, 1-player, epsilon_l, epsilon_g, epsilon_0, global_strategy, MAX_TREE_DEPTH, current_iteration++);
 
-        if (leaf!=null) {  
-            if (DEBUG>=2) System.out.println("leaf...");
-          
+        if (leaf!=null) {            
             GameState gs2 = leaf.gs.clone();
             ArrayList<ArrayList<Double>> response = simulate_evaluated(gs2, gs2.getTime() + MAXSIMULATIONTIME, player);
-            if (DEBUG>=2) System.out.println("a...");
 
             ArrayList<Double> evals = response.get(0);
             ArrayList<Double> risks = response.get(1);
             ArrayList<Double> scores_0 = response.get(2);
             ArrayList<Double> scores_1 = response.get(3);
-            if (DEBUG>=2) System.out.println("b...");
-
-            if (DEBUG>=2) System.out.println("response.size():" + response.size());
 
             ArrayList<ArrayList<Double>> tmp_rewards = new ArrayList<>();
             for (int i = 4; i < response.size(); i++) {
                 tmp_rewards.add(response.get(i));
             }
             global_rewards = tmp_rewards;
-            if (DEBUG>=2) System.out.println("c...");
 
+            global_final_reward = calculate_reward(tmp_rewards);
 
             global_evals = evals;
             global_risks = risks;
@@ -589,13 +596,12 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             double ser = sequence_execution_risk(evals);
             global_ser = ser;
 
-            double rbf = risk_bounding_function(evals);
+            //double rbf = risk_bounding_function(evals);
+            double rbf = global_final_reward * rbf_delta;
+
             global_rbf = rbf;
 
-            //if (gs2.getTime() < 1000) { // debug enforce rbf
-            if (DEBUG>=2) System.out.println("starting comparison for vulcan SER <= RBF...");
-
-            if (ser <= rbf){ // correct
+            if (ser <= rbf){
                 // State history satisfies the bounding function
 
                 // update the node
