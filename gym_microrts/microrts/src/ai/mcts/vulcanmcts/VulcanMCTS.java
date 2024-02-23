@@ -596,8 +596,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             double ser = sequence_execution_risk(evals);
             global_ser = ser;
 
-            //double rbf = risk_bounding_function(evals);
-            double rbf = global_final_reward * rbf_delta;
+            double rbf = risk_bounding_function(evals);
+            //double rbf = global_final_reward * rbf_delta;
 
             global_rbf = rbf;
 

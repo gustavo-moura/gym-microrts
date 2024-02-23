@@ -70,11 +70,33 @@ fig = go.Figure()
 fig.add_trace(go.Pie(labels=['No Action', 'AI selected action', 'Fallback action'], values=[np.sum(actions == -1), np.sum(actions == 0), np.sum(actions == 1)], hole=.3, marker=dict(colors=[colors3['darkblue'], colors3['pink'], colors3['yellow']])))
 st.plotly_chart(fig, use_container_width=True)
 
+st.text(fallbacks[-1])
 
 rewards = r['vulcan_rewards']
 # official timestep
 # simulated timestep
 # reward functions
+
+# Plot ? - Raw Rewards
+st.header('Raw Rewards')
+fig = go.Figure()
+# bar plot stacked
+summed_rewards = []
+for reward in rewards:
+    summed_rewards.append(reward.sum(axis=1))
+summed_rewards = np.array(summed_rewards)
+
+st.text(summed_rewards.shape)
+x = np.arange(len(summed_rewards))
+fig.add_trace(go.Bar(x=x, y=summed_rewards[:,0], name='WinLossRewardFunction'))#, marker_color=colors2[0]))
+fig.add_trace(go.Bar(x=x, y=summed_rewards[:,1], name='ResourceGatherRewardFunction'))#, marker_color=colors2[1]))
+fig.add_trace(go.Bar(x=x, y=summed_rewards[:,2], name='ProduceWorkerRewardFunction'))#, marker_color=colors2[2]))
+fig.add_trace(go.Bar(x=x, y=summed_rewards[:,3], name='ProduceBuildingRewardFunction'))#, marker_color=colors2[3]))
+fig.add_trace(go.Bar(x=x, y=summed_rewards[:,4], name='AttackRewardFunction'))#, marker_color=colors2[4]))
+fig.add_trace(go.Bar(x=x, y=summed_rewards[:,5], name='ProduceCombatUnitRewardFunction'))#, marker_color=colors2[5]))
+fig.update_layout(barmode='stack', xaxis_title='timestep', yaxis_title='reward', legend=dict(yanchor="bottom", y=1, xanchor="left", x=0))
+st.plotly_chart(fig, use_container_width=True)
+
 
 reward_weight = np.array([10.0, 1.0, 1.0, 0.2, 1.0, 4.0])
 
@@ -97,7 +119,7 @@ for reward_in_timestep in rewards:
 all_rewards = np.array(all_rewards)
 
 # PLOT 5 - Rewards
-st.header('Rewards')
+st.header('Weighted Rewards')
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=np.arange(len(all_rewards)), y=all_rewards, name='Vulcan rewards', mode='lines+markers', line=dict(color=colors1[0])))
 fig.update_layout(xaxis_title='timestep', yaxis_title='reward', legend=dict(yanchor="bottom", y=1, xanchor="left", x=0))
@@ -130,6 +152,7 @@ fig.add_trace(go.Scatter(x=np.arange(len(all_rewards)), y=all_rewards*epsilon, n
 
 fig.update_layout(xaxis_title='timestep', yaxis_title='value', legend=dict(yanchor="bottom", y=1, xanchor="left", x=0))
 st.plotly_chart(fig, use_container_width=True)
+
 
 # ''' Plot EXAMPLE : binary lines
 # fallbacks[0:5] = np.array([0,1,1,1,0,1,1,0,0])

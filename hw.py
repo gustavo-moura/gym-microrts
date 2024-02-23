@@ -13,9 +13,9 @@ out_path = Path('./videos/experiment')
 out_path.mkdir(parents=True, exist_ok=True)
 
 ai1s = [microrts_ai.vulcanMCTSAI]
-#ai2s = [microrts_ai.naiveMCTSAI]
+ai2s = [microrts_ai.naiveMCTSAI]
 #ai2s = [microrts_ai.coacAI]
-ai2s = [microrts_ai.lightRushAI]
+#ai2s = [microrts_ai.lightRushAI]
 
 max_steps = 2000
 envs = MicroRTSBotVecEnv(
@@ -86,12 +86,13 @@ for i in trange(max_steps):
         save_video(images, path=out_path/'experiment.mp4')
         with open(out_path/'results.pkl', 'wb') as file: pkl.dump(results, file)
 
-        print(f'Results fallback actions: {results["fallbacks"]}')
+        #print(f'Results fallback actions: {results["fallbacks"]}')
 
-        pdb.set_trace()
+        #pdb.set_trace()
 
         break
 
-envs.close()
+print('Done.')
 
+envs.close()
 
