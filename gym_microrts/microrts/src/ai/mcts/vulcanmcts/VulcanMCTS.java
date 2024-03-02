@@ -36,16 +36,16 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
 
     public AI[] ais;
 
-    protected long max_actions_so_far = 0;
+    public long max_actions_so_far = 0;
     
-    protected GameState gs_to_start_from = null;
-    protected VulcanMCTSNode tree = null;
+    public GameState gs_to_start_from = null;
+    public VulcanMCTSNode tree = null;
     public int current_iteration = 0;
             
     public int MAXSIMULATIONTIME = 2048; // 1024
     public int MAX_TREE_DEPTH = 100;
     
-    protected int player;
+    public int player;
     
     public float epsilon_0 = 0.2f;
     public float epsilon_l = 0.25f;
@@ -586,6 +586,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 // TODO: comparar com o pseudocodigo
                 //leaf.propagateEvaluation(evaluation,null);            
                 leaf.propagateEvaluation(rbf-1, null);
+                leaf.setRisk(ser);
 
                 // update the epsilon values:
                 epsilon_0*=discount_0;

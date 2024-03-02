@@ -55,7 +55,7 @@ vulcan.setRBFDelta(0.15)
 vulcan.setRBFEpsilon(1)
 vulcan.setSERNActions(5)
 vulcan.setSERFactor(10)
-vulcan.setRewardWeight(reward_weight)
+vulcan.setRewardWeights(reward_weight)
 vulcan.setSelectedRBF(vulcan.RBF_EVAL_BASED)
 # vulcan.setSelectedRBF(vulcan.RBF_REWARDS_BASED)
 
@@ -81,6 +81,9 @@ for i in trange(max_steps):
     images.append(img)
     # Get evaluations
     append_bot_results(vulcan, results, infos)
+    if i>=250:
+        leaf = vulcan.tree.selectLeaf(0, 1, vulcan.epsilon_l, vulcan.epsilon_g, vulcan.epsilon_0, vulcan.global_strategy, vulcan.MAX_TREE_DEPTH, vulcan.current_iteration)
+        pdb.set_trace()
 
     if done:
         print_winner(results)

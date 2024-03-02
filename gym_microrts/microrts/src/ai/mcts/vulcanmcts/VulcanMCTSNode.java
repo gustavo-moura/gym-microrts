@@ -365,6 +365,10 @@ public class VulcanMCTSNode extends MCTSNode {
     }
 
     
+    public void setRisk(double risk) {
+        this.risk = risk;
+    }
+     
     public void printUnitActionTable() {
         for (UnitActionTableEntry uat : unitActionTable) {
             System.out.println("Actions for unit " + uat.u);
