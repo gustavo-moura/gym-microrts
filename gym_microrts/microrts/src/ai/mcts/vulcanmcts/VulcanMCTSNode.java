@@ -34,6 +34,8 @@ public class VulcanMCTSNode extends MCTSNode {
     double evaluation_bound;    // this is the maximum positive value that the evaluation function can return
     public BigInteger multipliers[];
 
+    public double risk = 0;
+
 
     public VulcanMCTSNode(int maxplayer, int minplayer, GameState a_gs, VulcanMCTSNode a_parent, double a_evaluation_bound, int a_creation_ID, boolean fensa) throws Exception {
         parent = a_parent;
@@ -141,7 +143,6 @@ public class VulcanMCTSNode extends MCTSNode {
     }
    
 
-    
     public VulcanMCTSNode selectFromAlreadySampledEpsilonGreedy(float epsilon_g) throws Exception {
         if (r.nextFloat()>=epsilon_g) {
             VulcanMCTSNode best = null;
@@ -363,6 +364,7 @@ public class VulcanMCTSNode extends MCTSNode {
         }
     }
 
+    
     public void printUnitActionTable() {
         for (UnitActionTableEntry uat : unitActionTable) {
             System.out.println("Actions for unit " + uat.u);
@@ -371,4 +373,6 @@ public class VulcanMCTSNode extends MCTSNode {
             }
         }
     }    
+
+
 }

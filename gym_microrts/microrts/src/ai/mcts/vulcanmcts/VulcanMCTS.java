@@ -70,27 +70,34 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public long total_actions_issued = 0;
     public long total_time = 0;
     
+
+
     //Vulcan
+    public static final int RBF_EVAL_BASED = 0;
+    public static final int RBF_REWARDS_BASED = 1;
+    public int selected_rbf = RBF_EVAL_BASED;
+
     public float rbf_delta = 0.01f;
+    public float rbf_epsilon = 1.0f;
+    public int ser_n_actions = 5;
+    public int ser_factor = 10;
+    public double[] reward_weights = {10.0, 1.0, 1.0, 0.2, 1.0, 4.0};
 
     public ArrayList<Double> global_evals;
     public ArrayList<Double> global_risks;
     public double global_ser;
     public double global_rbf;
     public double global_last_eval;
-
     public ArrayList<Double> global_scores_0;
     public ArrayList<Double> global_scores_1;
-
     public ArrayList<ArrayList<Double>> global_rewards;
+    public double global_final_reward;
 
     public int count = 0;
 
     public ArrayList<Integer> fallback_actions = new ArrayList<>();
     
     public RewardFunctionInterface[] rfs;
-
-    public double global_final_reward;
 
     // storage
     double[] rewards;
@@ -264,8 +271,28 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public void setForceExplorationOfNonSampledActions(boolean fensa) {
         forceExplorationOfNonSampledActions = fensa;
     }    
+    public void setRewardFunctions(RewardFunctionInterface[] rfs) {
+        this.rfs = rfs;
+    } 
+    public void setRBFDelta(float rbf_delta) {
+        this.rbf_delta = rbf_delta;
+    }
+    public void setRBFEpsilon(float rbf_epsilon) {
+        this.rbf_epsilon = rbf_epsilon;
+    }
+    public void setSERNActions(int ser_n_actions) {
+        this.ser_n_actions = ser_n_actions;
+    }
+    public void setSERFactor(int ser_factor) {
+        this.ser_factor = ser_factor;
+    }
+    public void setRewardWeights(double[] reward_weights) {
+        this.reward_weights = reward_weights;
+    }
+    public void setSelectedRBF(int selected_rbf) {
+        this.selected_rbf = selected_rbf;
+    }
 
-    
     public void reset() {
         tree = null;
         gs_to_start_from = null;
@@ -276,11 +303,9 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         current_iteration = 0;
     }    
         
-    
     public AI clone() {
         return new VulcanMCTS(TIME_BUDGET, ITERATIONS_BUDGET, MAXSIMULATIONTIME, MAX_TREE_DEPTH, epsilon_l, discount_l, epsilon_g, discount_g, epsilon_0, discount_0, playoutPolicy, ef, forceExplorationOfNonSampledActions);
     }    
-    
     
     private void startAIs(){
         int ITERATIONS_BUDGET = 10;
@@ -292,13 +317,11 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         ais[4] = new RandomNoAttackAI(ITERATIONS_BUDGET);
     }
     
-    
     public AI selectRandomAi() {
         int rnd = new Random().nextInt(ais.length);
         return ais[rnd];
     }
 
-    
     public PlayerAction getAction(int player, GameState gs) throws Exception
     {
         if (gs.canExecuteAnyAction(player)) {
@@ -323,7 +346,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         }       
     }
     
-    
     public void startNewComputation(int a_player, GameState gs) throws Exception {
         player = a_player;
         current_iteration = 0;
@@ -341,13 +363,11 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         epsilon_0 = initial_epsilon_0;        
     }    
     
-    
     public void resetSearch() {
         if (DEBUG>=2) System.out.println("Resetting search...");
         tree = null;
         gs_to_start_from = null;
     }
-    
 
     public void computeDuringOneGameFrame() throws Exception {        
         if (DEBUG>=2) System.out.println("Search...");
@@ -365,7 +385,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         total_time += (end - start);
         total_cycles_executed++;
     }
-    
 
     public PlayerAction getBestActionSoFar() {
         int idx = getMostVisitedActionIdx();
@@ -381,7 +400,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         }
         return tree.actions.get(idx);
     }
-    
     
     public int getMostVisitedActionIdx() {
         total_actions_issued++;
@@ -411,7 +429,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         return bestIdx;
     }
     
-    
     public int getHighestEvaluationActionIdx() {
         total_actions_issued++;
             
@@ -438,8 +455,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         
         return bestIdx;
     }
-    
-        
+      
     public void simulate(GameState gs, int time) throws Exception {
         boolean gameover = false;
 
@@ -454,99 +470,50 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
 
     
+
     // Vulcan
 
-    public void setRewardFunctions(RewardFunctionInterface[] rfs) {
-        this.rfs = rfs;
-    }
-
-    
-    public void setRBFDelta(float rbf_delta) {
-        this.rbf_delta = rbf_delta;
-    }
-
-    
-    public double sequence_execution_risk_old(ArrayList<Double> risks){
-        
-        double prod_safety = 1;
-        for (int i = 0; i < risks.size(); i++){
-            prod_safety = prod_safety * (1 - (risks.get(i) / 10));
-        }
-        
-        double ser = (1 - prod_safety) / prod_safety;
-        
-        return ser;
-    }
-
-    
     public double sequence_execution_risk(ArrayList<Double> evals){
-        if (DEBUG>=2) System.out.println("sequence_execution_risk...");
-        if (DEBUG>=2) System.out.println("evals: " + evals);
-
         double prod_safety = 1;
-
-        // Evaluate risk
-        for (int i = evals.size() - 1; i >= Math.max(evals.size() - 5, 0); i--){
-            if (DEBUG>=2) System.out.println("i: " + i + ", evals.get(i): " + evals.get(i));
-
+        for (int i = evals.size() - 1; i >= Math.max(evals.size() - ser_n_actions, 0); i--){
             double risk = 0.0f;
             double local_evaluation = evals.get(i);
-            if (local_evaluation >= 0){ // nao corre risco
+            if (local_evaluation >= 0){ 
+                // not a risky state
                 risk = 0.0f;
             }
-            else{ // corre risco entre [0,1]
+            else{ 
+                // taking risks between [0,1]
                 risk = Math.abs(local_evaluation);
             }
 
-            // produtorio
-            prod_safety = prod_safety * (1 - (risk / 10));
+            prod_safety = prod_safety * (1 - (risk / ser_factor));
         }
-        
+        //                 risk        / safety
         double ser = (1 - prod_safety) / prod_safety;
-        
         return ser;
     }
-    
-    
-    public double risk_bounding_function_old(ArrayList<Double> risks){
-        // 2023
-        double prod_risk = 0;
+      
+    public double risk_bounding_function_evalbased(ArrayList<Double> evals){
 
-        for (int i = 0; i < risks.size(); i++){
-            prod_risk = prod_risk + (Math.pow(0.99, i) * (risks.get(i) / 10));
-        }
-        
         // sufficient local conditions
-        double slc = (1 - prod_risk) / (prod_risk * 100);
-
-        double rbf = rbf_delta * slc; 
-
-        return rbf;
-    }
-
-    
-    public double risk_bounding_function(ArrayList<Double> evals){
-        if (DEBUG>=2) System.out.println("risk_bounding_function...");
-
-        double max_risk = 0;
-
+        double slc = 0;
         for (int i = 0; i < evals.size(); i++){
-            max_risk = max_risk + (Math.pow(0.99, i) * (evals.get(i)));
+            slc = slc + (Math.pow(0.99, i) * (evals.get(i)));
         }
-        
-        // sufficient local conditions
-        double slc = max_risk;
-
-        double rbf = 1 + rbf_delta * slc; 
+    
+        double rbf = rbf_epsilon + rbf_delta * slc; 
 
         return rbf;
     }
 
+    public double risk_bounding_function_rewardsbased(double final_reward){
+        double rbf = rbf_epsilon + rbf_delta * final_reward;
+        return rbf;
+    }
 
     public double calculate_reward(ArrayList<ArrayList<Double>> rewards){
-        double[] reward_weights = {10.0, 1.0, 1.0, 0.2, 1.0, 4.0};
         double final_reward = 0;
-
         for (int j = 0; j < rewards.size(); j++){
             ArrayList<Double> element_reward = rewards.get(j);
             double weight = reward_weights[j];
@@ -554,59 +521,72 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 final_reward = final_reward + (Math.pow(0.99, i) * element_reward.get(i) * weight);
             }
         }
-
         return final_reward;
     }
 
+    public double risk_bounding_function(ArrayList<Double> evals, ArrayList<ArrayList<Double>> tmp_rewards){
+
+        global_final_reward = calculate_reward(tmp_rewards);
+
+        double rbf = 0;
+        if (selected_rbf == RBF_EVAL_BASED){
+            rbf = risk_bounding_function_evalbased(evals);
+        }
+        else if (selected_rbf == RBF_REWARDS_BASED){
+            rbf = risk_bounding_function_rewardsbased(global_final_reward);
+        }
+        return rbf;
+    }
+    
     
     public boolean iteration(int player) throws Exception {
         VulcanMCTSNode leaf = tree.selectLeaf(player, 1-player, epsilon_l, epsilon_g, epsilon_0, global_strategy, MAX_TREE_DEPTH, current_iteration++);
 
-        if (leaf!=null) {            
+        if (leaf!=null) {
+            count++;
+
             GameState gs2 = leaf.gs.clone();
             ArrayList<ArrayList<Double>> response = simulate_evaluated(gs2, gs2.getTime() + MAXSIMULATIONTIME, player);
 
             ArrayList<Double> evals = response.get(0);
             ArrayList<Double> risks = response.get(1);
-            ArrayList<Double> scores_0 = response.get(2);
-            ArrayList<Double> scores_1 = response.get(3);
+            global_scores_0 = response.get(2);  // self
+            global_scores_1 = response.get(3);  // enemy
+            
+            global_evals = evals;
+            global_risks = risks;
 
+            // Rewards
             ArrayList<ArrayList<Double>> tmp_rewards = new ArrayList<>();
             for (int i = 4; i < response.size(); i++) {
                 tmp_rewards.add(response.get(i));
             }
             global_rewards = tmp_rewards;
-
-            global_final_reward = calculate_reward(tmp_rewards);
-
-            global_evals = evals;
-            global_risks = risks;
-            global_scores_0 = scores_0;  // self
-            global_scores_1 = scores_1;  // enemy
-
-            count++;
-
-            int time = gs2.getTime() - gs_to_start_from.getTime();
+            
             double local_evaluation = ef.evaluate(player, 1-player, gs2);
             global_last_eval = local_evaluation;
-
+            
+            // evaluation
+            int time = gs2.getTime() - gs_to_start_from.getTime();
             double evaluation = local_evaluation * Math.pow(0.99, time/10.0);
-
-            //VULCAN: if simulated states history violates the bounding function then delete node
+            
+            // SER
             double ser = sequence_execution_risk(evals);
             global_ser = ser;
-
-            double rbf = risk_bounding_function(evals);
-            //double rbf = global_final_reward * rbf_delta;
-
+            
+            // RBF
+            double rbf = risk_bounding_function(evals, tmp_rewards);
             global_rbf = rbf;
 
             if (ser <= rbf){
+            //if ((ser <= rbf) && (ser >= 0.4 * rbf)){
                 // State history satisfies the bounding function
 
                 // update the node
-                leaf.propagateEvaluation(evaluation,null);            
-    
+                // TODO: comparar com o pseudocodigo
+                //leaf.propagateEvaluation(evaluation,null);            
+                leaf.propagateEvaluation(rbf-1, null);
+
                 // update the epsilon values:
                 epsilon_0*=discount_0;
                 epsilon_l*=discount_l;
