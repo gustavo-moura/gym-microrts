@@ -26,6 +26,7 @@ envs = MicroRTSBotVecEnv(
     render_theme=2,
     map_paths=["maps/16x16/basesWorkers16x16.xml"],
     reward_weight=reward_weight,
+    partial_obs=True,
 )
 envs.reset()
 
@@ -81,9 +82,9 @@ for i in trange(max_steps):
     images.append(img)
     # Get evaluations
     append_bot_results(vulcan, results, infos)
-    if i>=250:
-        leaf = vulcan.tree.selectLeaf(0, 1, vulcan.epsilon_l, vulcan.epsilon_g, vulcan.epsilon_0, vulcan.global_strategy, vulcan.MAX_TREE_DEPTH, vulcan.current_iteration)
-        pdb.set_trace()
+    # if i>=250:
+    #     leaf = vulcan.tree.selectLeaf(0, 1, vulcan.epsilon_l, vulcan.epsilon_g, vulcan.epsilon_0, vulcan.global_strategy, vulcan.MAX_TREE_DEPTH, vulcan.current_iteration)
+    #     pdb.set_trace()
 
     if done:
         print_winner(results)

@@ -20,6 +20,7 @@ public class VulcanMCTSNode extends MCTSNode {
     
     public static final int E_GREEDY = 0;
     public static final int UCB1 = 1;
+    public static final int RISK_REWARD = 2;
     
     static public int DEBUG = 0;
     
@@ -33,8 +34,6 @@ public class VulcanMCTSNode extends MCTSNode {
     public List<UnitActionTableEntry> unitActionTable = null;
     double evaluation_bound;    // this is the maximum positive value that the evaluation function can return
     public BigInteger multipliers[];
-
-    public double risk = 0;
 
 
     public VulcanMCTSNode(int maxplayer, int minplayer, GameState a_gs, VulcanMCTSNode a_parent, double a_evaluation_bound, int a_creation_ID, boolean fensa) throws Exception {
@@ -167,7 +166,7 @@ public class VulcanMCTSNode extends MCTSNode {
             return best;
         }
     }
-    
+
     
     public VulcanMCTSNode selectFromAlreadySampledUCB1(float C) throws Exception {
         VulcanMCTSNode best = null;
@@ -365,8 +364,8 @@ public class VulcanMCTSNode extends MCTSNode {
     }
 
     
-    public void setRisk(double risk) {
-        this.risk = risk;
+    public void setRisk(double a_risk) {
+        risk = a_risk;
     }
      
     public void printUnitActionTable() {

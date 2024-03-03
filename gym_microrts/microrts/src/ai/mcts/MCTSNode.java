@@ -27,6 +27,7 @@ public abstract class MCTSNode {
 
     public double accum_evaluation = 0;
     public int visit_count = 0;
+    public double risk = 0;
     
     // These variables are just used to improve the efficiency of the algorithm, 
     // and avoid linear searches:

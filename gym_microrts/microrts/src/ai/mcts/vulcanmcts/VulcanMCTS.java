@@ -387,8 +387,9 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
 
     public PlayerAction getBestActionSoFar() {
-        int idx = getMostVisitedActionIdx();
+        //int idx = getMostVisitedActionIdx();
         //int idx = getHighestEvaluationActionIdx();
+        int idx = getLowestRiskActionIdx();
         if (idx==-1) {
             if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty action");
             return new PlayerAction();
@@ -453,6 +454,24 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             }
         }
         
+        return bestIdx;
+    }
+
+    public int getLowestRiskActionIdx() {
+        total_actions_issued++;
+            
+        int bestIdx = -1;
+        VulcanMCTSNode best = null;
+        double bestScore = 1;
+        for(int i = 0;i<tree.children.size();i++) {
+            VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
+            double tmp = child.risk;
+            if (best == null || tmp < bestScore) {
+                best = child;
+                bestScore = tmp;
+                bestIdx = i;
+            }
+        }
         return bestIdx;
     }
       
