@@ -125,7 +125,15 @@ The action_list can contain arbitrary number of actions. The args of each action
 ---
 
 
-
+{
+0: "(A3, harvest, east)",
+1: "(A3, return, west)",
+2: "(B2, produce, east, worker)",
+3: "(A1, move, east)",
+4: "(A1, harvest, east)",
+5: "(A1, return, west)",
+6: "(B2, produce, east, worker)"
+}
 
 
 
