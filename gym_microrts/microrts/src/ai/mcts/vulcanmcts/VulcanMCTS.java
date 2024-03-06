@@ -325,6 +325,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public PlayerAction getAction(int player, GameState gs) throws Exception
     {
         if (gs.canExecuteAnyAction(player)) {
+            // salvar a ser anterior
             startNewComputation(player,gs.clone());
             computeDuringOneGameFrame();
 
@@ -387,9 +388,15 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     }
 
     public PlayerAction getBestActionSoFar() {
+
+        // TODO: parametrizar escolha
         //int idx = getMostVisitedActionIdx();
         //int idx = getHighestEvaluationActionIdx();
+        //int idx = getHighestRiskActionIdx();
         int idx = getLowestRiskActionIdx();
+
+        // acessar ser, rbf
+
         if (idx==-1) {
             if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty action");
             return new PlayerAction();
@@ -467,6 +474,24 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
             double tmp = child.risk;
             if (best == null || tmp < bestScore) {
+                best = child;
+                bestScore = tmp;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    }
+
+    public int getHighestRiskActionIdx() {
+        total_actions_issued++;
+            
+        int bestIdx = -1;
+        VulcanMCTSNode best = null;
+        double bestScore = 0;
+        for(int i = 0;i<tree.children.size();i++) {
+            VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
+            double tmp = child.risk;
+            if (best == null || tmp > bestScore) {
                 best = child;
                 bestScore = tmp;
                 bestIdx = i;

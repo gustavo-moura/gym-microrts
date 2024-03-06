@@ -57,8 +57,8 @@ vulcan.setRBFEpsilon(1)
 vulcan.setSERNActions(5)
 vulcan.setSERFactor(10)
 vulcan.setRewardWeights(reward_weight)
-vulcan.setSelectedRBF(vulcan.RBF_EVAL_BASED)
-# vulcan.setSelectedRBF(vulcan.RBF_REWARDS_BASED)
+vulcan.setSelectedRBF(vulcan.RBF_EVAL_BASED)  # RBF original - baseado no eval
+# vulcan.setSelectedRBF(vulcan.RBF_REWARDS_BASED)  # RBF nova - baseado no reward
 
 images = []
 
