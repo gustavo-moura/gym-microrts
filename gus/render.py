@@ -189,3 +189,101 @@ def plot_map(matrix):
     plt.yticks(range(matrix.shape[0]))
     plt.show()
 
+def plot_action_mask(envs, map_size):
+    action_mask = envs.get_action_mask()
+    action_mask = action_mask.reshape(-1, action_mask.shape[-1])
+    action_mask_tiles = action_mask.reshape(map_size, map_size, -1)
+    plt.figure(figsize=(5, 5))
+    plt.imshow(action_mask_tiles.sum(-1))
+
+    plt.gca().set_xticks(np.arange(-.5, map_size, 1), minor=True)
+    plt.gca().set_yticks(np.arange(-.5, map_size, 1), minor=True)
+    plt.grid(which="minor", axis="both", linestyle="-", color="k", linewidth=1)
+
+    plt.xticks(np.arange(0, map_size, 1))
+    plt.yticks(np.arange(0, map_size, 1))
+    plt.xlabel("x")
+    plt.ylabel("y")
+
+    plt.title("Action Mask")
+    plt.show()
+
+def print_action_space(action_mask_tile):
+    # (action_mask[0:6]),  # action type: {NOOP, move, harvest, return, produce, attack}
+    # (action_mask[6:10]),  # move parameter: {north, east, south, west}
+    # (action_mask[10:14]),  # harvest parameter: {north, east, south, west}
+    # (action_mask[14:18]),  # return parameter: {north, east, south, west}
+    # (action_mask[18:22]),  # produce_direction parameter: {north, east, south, west}
+    # (action_mask[22:29]),  # produce_unit_type parameter: {resource, base, barracks, worker, light, heavy, ranged}
+    # (action_mask[29 : sum(envs.action_space.nvec[1:])]),  # attack_target parameter: relative position of the unit that will be attacked
+
+    # visualization of the action space for a given tile, translating where 1 means that the corresponding action is available
+    
+    action_types = ["NOOP", "move", "harvest", "return", "produce", "attack"]
+
+    print("Action Type:")
+    mask = action_mask_tile[0:6]
+    print_masked(mask, mask)
+    print_masked(mask, action_types)
+    print()
+
+    location_parameters = ["north", "east", "south", "west"]
+
+    print("Move Parameter:")
+    mask = action_mask_tile[6:10]
+    print_masked(mask, mask)
+    print_masked(mask, location_parameters)
+    print()
+
+    print("Harvest Parameter:")
+    mask = action_mask_tile[10:14]
+    print_masked(mask, mask)
+    print_masked(mask, location_parameters)
+    print()
+
+    print("Return Parameter:")
+    mask = action_mask_tile[14:18]
+    print_masked(mask, mask)
+    print_masked(mask, location_parameters)
+    print()
+
+    print("Produce Direction Parameter:")
+    mask = action_mask_tile[18:22]
+    print_masked(mask, mask)
+    print_masked(mask, location_parameters)
+    print()
+
+    unit_types = ["resource", "base", "barracks", "worker", "light", "heavy", "ranged"]
+
+    print("Produce Unit Type Parameter:")
+    mask = action_mask_tile[22:29]
+    print_masked(mask, mask)
+    print_masked(mask, unit_types)
+    print()
+
+    print("Attack Target Parameter:")
+    mask = action_mask_tile[29:sum(envs.action_space.nvec[1:])]
+    print(mask.reshape(7, 7))
+    print()
+
+def print_masked(mask, params):
+    for i, param in enumerate(params):
+        if mask[i] == 1:
+            print(f"\033[1m{param: ^7}\033[0m", end=" ")
+        else:
+            print(f'{param: ^7}', end=" ")
+    print()
+
+
+
+ac_move_east = np.array([
+    1,  # action type: {NOOP, move, harvest, return, produce, attack}
+    1,  # move parameter: {north, east, south, west}
+    0,  # harvest parameter: {north, east, south, west}
+    0,  # return parameter: {north, east, south, west}
+    0,  # produce_direction parameter: {north, east, south, west}
+    0,  # produce_unit_type parameter: {resource, base, barracks, worker, light, heavy, ranged}
+    0  # attack_target parameter: relative position of the unit that will be attacked
+])
+ac_produce_worker_south = np.array([4, 0, 0, 0, 2, 3, 0])
+ac_produce_worker_west = np.array([4, 0, 0, 0, 3, 3, 0])
