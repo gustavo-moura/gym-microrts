@@ -43,7 +43,7 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public int current_iteration = 0;
             
     public int MAXSIMULATIONTIME = 2048; // 1024
-    public int MAX_TREE_DEPTH = 100;
+    public int MAX_TREE_DEPTH = 3;
     
     public int player;
     
@@ -406,6 +406,12 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             VulcanMCTSNode best = (VulcanMCTSNode) tree.children.get(idx);
             System.out.println("VulcanMCTS selected children " + tree.actions.get(idx) + " explored " + best.visit_count + " Avg evaluation: " + (best.accum_evaluation/((double)best.visit_count)));
         }
+        
+        VulcanMCTSNode selected_child = (VulcanMCTSNode) tree.children.get(idx);
+
+        global_ser = selected_child.getSER();
+        global_rbf = selected_child.getRBF();
+        
         return tree.actions.get(idx);
     }
     
@@ -622,7 +628,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
             double rbf = risk_bounding_function(evals, tmp_rewards);
             global_rbf = rbf;
 
-            if (ser <= rbf){
+            if (ser > -10){
+            //if (ser <= rbf){
             //if ((ser <= rbf) && (ser >= 0.4 * rbf)){
                 // State history satisfies the bounding function
 
@@ -631,6 +638,8 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
                 //leaf.propagateEvaluation(evaluation,null);            
                 leaf.propagateEvaluation(rbf-1, null);
                 leaf.setRisk(ser);
+                leaf.setRBF(rbf);
+                leaf.setSER(ser);
 
                 // update the epsilon values:
                 epsilon_0*=discount_0;

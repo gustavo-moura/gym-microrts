@@ -367,7 +367,18 @@ public class VulcanMCTSNode extends MCTSNode {
     public void setRisk(double a_risk) {
         risk = a_risk;
     }
-     
+    public double getSER() {
+        return ser;
+    }   
+    public void setSER(double a_ser) {
+        ser = a_ser;
+    }
+    public double getRBF() {
+        return rbf;
+    }
+    public void setRBF(double a_rbf) {
+        rbf = a_rbf;
+    }
     public void printUnitActionTable() {
         for (UnitActionTableEntry uat : unitActionTable) {
             System.out.println("Actions for unit " + uat.u);
