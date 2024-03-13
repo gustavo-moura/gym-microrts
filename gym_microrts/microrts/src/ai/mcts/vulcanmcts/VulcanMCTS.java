@@ -77,6 +77,15 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public static final int RBF_REWARDS_BASED = 1;
     public int selected_rbf = RBF_EVAL_BASED;
 
+    public static final int MOST_VISITED = 0;
+    public static final int HIGHEST_EVALUATION = 1;
+    public static final int LOWEST_RISK = 2;
+    public static final int HIGHEST_RISK = 3;
+    public static final int HIGHEST_RISK_WITHIN_RBF = 4;
+    public static final int HIGHEST_EVALUATION_WITHIN_RBF = 5;
+    public int selected_strategy = MOST_VISITED;
+
+
     public float rbf_delta = 0.01f;
     public float rbf_epsilon = 1.0f;
     public int ser_n_actions = 5;
@@ -292,7 +301,10 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public void setSelectedRBF(int selected_rbf) {
         this.selected_rbf = selected_rbf;
     }
-
+    public void setSelectionStrategy(int selected_strategy) {
+        this.selected_strategy = selected_strategy;
+    }
+    
     public void reset() {
         tree = null;
         gs_to_start_from = null;
@@ -325,7 +337,6 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
     public PlayerAction getAction(int player, GameState gs) throws Exception
     {
         if (gs.canExecuteAnyAction(player)) {
-            // salvar a ser anterior
             startNewComputation(player,gs.clone());
             computeDuringOneGameFrame();
 
@@ -387,15 +398,29 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         total_cycles_executed++;
     }
 
+    
     public PlayerAction getBestActionSoFar() {
 
-        // TODO: parametrizar escolha
-        //int idx = getMostVisitedActionIdx();
-        //int idx = getHighestEvaluationActionIdx();
-        //int idx = getHighestRiskActionIdx();
-        int idx = getLowestRiskActionIdx();
+        int idx = -1;
 
-        // acessar ser, rbf
+        if (selected_strategy == MOST_VISITED) {
+            idx = getMostVisitedActionIdx();
+        }
+        else if (selected_strategy == HIGHEST_EVALUATION) {
+            idx = getHighestEvaluationActionIdx();
+        }
+        else if (selected_strategy == LOWEST_RISK) {
+            idx = getLowestRiskActionIdx();
+        }
+        else if (selected_strategy == HIGHEST_RISK) {
+            idx = getHighestRiskActionIdx();
+        }
+        else if (selected_strategy == HIGHEST_RISK_WITHIN_RBF) {
+            idx = getHighestRiskWithinRBFActionIdx();
+        }
+        else if (selected_strategy == HIGHEST_EVALUATION_WITHIN_RBF) {
+            idx = getHighestEvaluationWithinRBFActionIdx();
+        }
 
         if (idx==-1) {
             if (DEBUG>=1) System.out.println("VulcanMCTS no children selected. Returning an empty action");
@@ -478,10 +503,9 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         double bestScore = 1;
         for(int i = 0;i<tree.children.size();i++) {
             VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
-            double tmp = child.risk;
-            if (best == null || tmp < bestScore) {
+            if (best == null || child.ser < bestScore) {
                 best = child;
-                bestScore = tmp;
+                bestScore = child.ser;
                 bestIdx = i;
             }
         }
@@ -496,16 +520,50 @@ public class VulcanMCTS extends AIWithComputationBudget implements Interruptible
         double bestScore = 0;
         for(int i = 0;i<tree.children.size();i++) {
             VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
-            double tmp = child.risk;
-            if (best == null || tmp > bestScore) {
+            if (best == null || child.ser > bestScore) {
                 best = child;
-                bestScore = tmp;
+                bestScore = child.ser;
                 bestIdx = i;
             }
         }
         return bestIdx;
     }
       
+    public int getHighestRiskWithinRBFActionIdx() {
+        total_actions_issued++;
+            
+        int bestIdx = -1;
+        VulcanMCTSNode best = null;
+        double bestScore = 0;
+        for(int i = 0;i<tree.children.size();i++) {
+            VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
+            if (best == null || (child.ser <= child.rbf && child.ser > bestScore)) {
+                best = child;
+                bestScore = child.ser;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    }
+
+    public int getHighestEvaluationWithinRBFActionIdx() {
+        total_actions_issued++;
+            
+        int bestIdx = -1;
+        VulcanMCTSNode best = null;
+        double bestScore = 0;
+        for(int i = 0;i<tree.children.size();i++) {
+            VulcanMCTSNode child = (VulcanMCTSNode)tree.children.get(i);
+            double mean_reward = (child.accum_evaluation / ((double)child.visit_count));
+            if (best == null || (child.ser <= child.rbf && mean_reward > bestScore)) {
+                best = child;
+                bestScore = mean_reward;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    }
+    
     public void simulate(GameState gs, int time) throws Exception {
         boolean gameover = false;
 

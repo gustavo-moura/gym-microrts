@@ -12,25 +12,24 @@ import pickle as pkl
 out_path = Path('./videos/experiment')
 out_path.mkdir(parents=True, exist_ok=True)
 
-ai1s = [microrts_ai.vulcanMCTSAI]
-ai2s = [microrts_ai.naiveMCTSAI]
+ai1s = [microrts_ai.vulcanMCTSAI, microrts_ai.vulcanMCTSAI, microrts_ai.vulcanMCTSAI]
+ai2s = [microrts_ai.naiveMCTSAI, microrts_ai.naiveMCTSAI, microrts_ai.naiveMCTSAI]
 #ai2s = [microrts_ai.coacAI]
 #ai2s = [microrts_ai.lightRushAI]
 
-max_steps = 2000
+max_steps = 20000
 reward_weight = np.array([10.0, 1.0, 1.0, 0.2, 1.0, 4.0])
 envs = MicroRTSBotVecEnv(
     ai1s=ai1s,
     ai2s=ai2s,
     max_steps=max_steps,
     render_theme=2,
-    map_paths=["maps/16x16/basesWorkers16x16.xml"],
+    map_paths=["maps/16x16/basesWorkers16x16.xml", "maps/16x16/basesWorkers16x16.xml", "maps/16x16/basesWorkers16x16.xml"],
     reward_weight=reward_weight,
     partial_obs=True,
 )
 envs.reset()
 
-vulcan = envs.vec_client.botClients[0].ai1  # bot0
 from ai.rewardfunction import (
     AttackRewardFunction,
     ProduceBuildingRewardFunction,
@@ -40,7 +39,6 @@ from ai.rewardfunction import (
     RewardFunctionInterface,
     WinLossRewardFunction,
 )
-
 rfs = JArray(RewardFunctionInterface)(
     [
         WinLossRewardFunction(),
@@ -51,14 +49,27 @@ rfs = JArray(RewardFunctionInterface)(
         ProduceCombatUnitRewardFunction()
     ]
 )
-vulcan.setRewardFunctions(rfs)
-vulcan.setRBFDelta(0.15)
-vulcan.setRBFEpsilon(1)
-vulcan.setSERNActions(5)
-vulcan.setSERFactor(10)
-vulcan.setRewardWeights(reward_weight)
-vulcan.setSelectedRBF(vulcan.RBF_EVAL_BASED)  # RBF original - baseado no eval
-# vulcan.setSelectedRBF(vulcan.RBF_REWARDS_BASED)  # RBF nova - baseado no reward
+
+# vulcan = envs.vec_client.botClients[0].ai1  # bot0
+
+for bot in envs.vec_client.botClients:
+    vulcan = bot.ai1
+
+    vulcan.setRewardFunctions(rfs)
+    vulcan.setRewardWeights(reward_weight)
+
+    vulcan.setSelectedRBF(vulcan.RBF_EVAL_BASED)  # RBF original - baseado no eval
+    # vulcan.setSelectedRBF(vulcan.RBF_REWARDS_BASED)  # RBF nova - baseado no reward
+    vulcan.setRBFDelta(0.01)  # rbf = rbf_epsilon + RBF_DELTA * slc;
+    vulcan.setRBFEpsilon(1)   # rbf = RBF_EPSILON + rbf_delta * slc;
+
+    vulcan.setSERNActions(5)  # calculate SER for sequence of size N
+    vulcan.setSERFactor(10)  # prod_safety = prod_safety * (1 - (risk / SER_FACTOR))
+
+    vulcan.setSelectionStrategy(vulcan.HIGHEST_EVALUATION_WITHIN_RBF)  # which selection policy to use when getting the best action
+
+    vulcan.setMaxTreeDepth(3)  # max depth of the tree when simulating
+
 
 images = []
 
@@ -86,7 +97,7 @@ for i in trange(max_steps):
     #     leaf = vulcan.tree.selectLeaf(0, 1, vulcan.epsilon_l, vulcan.epsilon_g, vulcan.epsilon_0, vulcan.global_strategy, vulcan.MAX_TREE_DEPTH, vulcan.current_iteration)
     #     pdb.set_trace()
 
-    if done:
+    if done.all():
         print_winner(results)
         save_video(images, path=out_path/'experiment.mp4')
         with open(out_path/'results.pkl', 'wb') as file: pkl.dump(results, file)
