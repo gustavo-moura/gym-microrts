@@ -10,7 +10,7 @@ class Nashor:
     Nashor agent that uses Llama to generate actions based on the observation and action mask.
     """
 
-    def __init__(self, map_size=8):
+    def __init__(self, map_size=8, log_file_name='nashor.log'):
         self.rows_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
         self.action_types = ["NOOP", "move", "harvest", "return", "produce", "attack"]
         self.location_parameters = ["north", "east", "south", "west"]
@@ -25,7 +25,7 @@ class Nashor:
         self.attack_range = 7
         self.half_attack_range = self.attack_range//2
 
-        file_handler = logging.FileHandler('nashor.log')
+        file_handler = logging.FileHandler(log_file_name)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ class Nashor:
 
         return resulting_strings
 
-    def _encode_action_mask(self, action_mask):
+    def _encode_action_mask(self, action_mask, add_numbers=True):
         """Encode the action mask to a prompt string."""
 
         action_mask = action_mask.reshape(-1, action_mask.shape[-1])
@@ -107,9 +107,16 @@ class Nashor:
                 if len(valid_action) > 0:
                     valid_actions.extend(valid_action)
 
-        prompt_valid_actions = "\n".join(valid_actions)
+        prompt_valid_actions = ''
+        for i, valid_action in enumerate(valid_actions):
+            if add_numbers:
+                prompt_valid_actions += f"{i}: {valid_action}\n"
+            else:
+                prompt_valid_actions += f"{valid_action}\n"
 
-        return prompt_valid_actions
+        str_valid_actions = '\n'.join(valid_actions)
+
+        return prompt_valid_actions, str_valid_actions
 
     def _encode_observation_features(self, features):
         """Encode the observation features to a string."""
@@ -133,24 +140,24 @@ class Nashor:
         action_type = np.argmax(feat_action_type)
         str_action_type = self.action_types[action_type]
 
-        obs_str = (
+        obs_str = np.array([
             str_unit_type, 
             f"hp:{hit_points}", 
             resources, 
             str_owner, 
             str_action_type
+        ], dtype='object'
         )
 
         return obs_str
 
     def _encode_observation(self, observation):
         """Encode the observation to a prompt string."""
-
         encoded_observation = np.apply_along_axis(self._encode_observation_features, 2, observation[0])
         encoded_observation = np.concatenate((self.positions, encoded_observation), axis=-1)
         obs_with_units = encoded_observation[encoded_observation[:, :, 1] != 'NO_UNIT']
-        prompt_str = np.apply_along_axis(lambda x: "("+", ".join(x)+")", 1, obs_with_units)
-        prompt_str = "\n".join(prompt_str)
+        obs_with_units_formatted = np.apply_along_axis(lambda x: "("+", ".join(x)+")", 1, obs_with_units)
+        prompt_str = '\n'.join(obs_with_units_formatted)
 
         return prompt_str
 
@@ -178,26 +185,31 @@ class Nashor:
             try:
                 s_action = value.strip("()").split(", ")
 
+                (actiontype_param,
+                location_param,
+                unit_types_param,
+                attack_param) = (0, 0, 0, 0)
+
+                # 0 - unit executing action
                 unit = s_action[0]
+
+                # 1 - action type
                 actiontype_choice = s_action[1]
                 actiontype_param = self.action_types.index(actiontype_choice)
 
-                location_choice = s_action[2]
-                location_param = self.location_parameters.index(location_choice)
+                # 2 - location or target unit
+                if len(s_action) > 2:
+                    if actiontype_param == 5:
+                        target_unit = s_action[2]
+                        attack_param = self._diff_relative_attack(unit, target_unit)
+                    else:
+                        location_choice = s_action[2]
+                        location_param = self.location_parameters.index(location_choice)
 
+                # 3 - produce unit type
                 if len(s_action) > 3:
                     unit_type_choice = s_action[3] 
                     unit_types_param = self.unit_types.index(unit_type_choice)
-
-                    target_unit = s_action[3]
-                    attack_param = self._diff_relative_attack(unit, target_unit)
-
-                else:
-                    unit_types_param = 0
-                    attack_param = 0
-
-                row = self.rows_letters.index(unit[0])
-                col = int(unit[1])
 
                 action = [
                     actiontype_param,
@@ -209,10 +221,16 @@ class Nashor:
                     attack_param
                 ]
 
+                row = self.rows_letters.index(unit[0])
+                col = int(unit[1])
+
                 actions[row][col] = action
-            except:
+
+            except Exception as e:
                 #print(f"Invalid action: {value}")
                 self.logger.warning(f"Invalid action: {value}")
+                self.logger.debug(f"Error: {e}")
+                import pdb; pdb.set_trace()
                 continue
             #print(s_action)
             
@@ -240,23 +258,25 @@ class Nashor:
             found_actions = re.findall(r'\((.*?)\)', content)
 
         self.logger.debug(f"Chosen Actions:\n{found_actions}")
+        # print(f"Chosen Actions:\n{found_actions}")
+
         action = self._decode_string_to_action(found_actions)
-        
         return action
     
     def get_action(self, action_mask, observation):
         """Get the next action based on the observation and action mask."""
-        
+        # print('prompt style: list_version1')
         self.logger.debug("-"*120)
         self.logger.info("Getting action from Nashor")
 
         # Encode observation and action mask to prompt string to be llm input
-        prompt_valid_actions = self._encode_action_mask(action_mask)
+        prompt_valid_actions, str_valid_actions = self._encode_action_mask(action_mask)
         prompt_observation = self._encode_observation(observation)
 
         # Decide which prompt to use
-        prompt, decode_mode = prompts.list_version2(prompt_observation, prompt_valid_actions)
+        prompt, decode_mode = prompts.list_version1(prompt_observation, prompt_valid_actions)
         self.logger.debug(f"Prompt:\n'''\n{prompt}\n'''")
+        # print(prompt)
 
         # Send prompt to Llama
         llama_response = self.client.chat(model='mistral', messages=[
@@ -267,7 +287,9 @@ class Nashor:
 
         # Process response based on decode mode
         content = llama_response['message']['content']        
-        action = self._decode_action(content, decode_mode=decode_mode, prompt_valid_actions=prompt_valid_actions)
+
+        # content = input("Enter action: ")
+        action = self._decode_action(content, decode_mode=decode_mode, prompt_valid_actions=str_valid_actions)
 
         return action
     
