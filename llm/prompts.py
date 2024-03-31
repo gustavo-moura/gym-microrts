@@ -199,8 +199,10 @@ Obervation:
 
 
 def list_random(observation, valid_actions):
+    n = valid_actions.split("\n")
     prompt = f"""
-Select an integer number between 0 and {len(valid_actions)-1}.
+Select an integer number between 0 and {len(n)-1}.
+Only answer with the selected number.
 """
     return prompt, DECODE_MODE_LIST
 

@@ -10,7 +10,13 @@ class Nashor:
     Nashor agent that uses Llama to generate actions based on the observation and action mask.
     """
 
-    def __init__(self, map_size=8, log_file_name='nashor.log'):
+    def __init__(
+        self,
+        map_size=8,
+        log_file_name='nashor.log',
+        prompt_function=prompts.list_version1,
+        llm='mistral',
+    ):
         self.rows_letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
         self.action_types = ["NOOP", "move", "harvest", "return", "produce", "attack"]
         self.location_parameters = ["north", "east", "south", "west"]
@@ -21,6 +27,9 @@ class Nashor:
         self.map_size = map_size
         self.positions = self._create_positions()
         self.client = Client(host='http://localhost:11434')
+
+        self.prompt_function = prompt_function
+        self.llm = llm
 
         self.attack_range = 7
         self.half_attack_range = self.attack_range//2
@@ -230,7 +239,7 @@ class Nashor:
                 #print(f"Invalid action: {value}")
                 self.logger.warning(f"Invalid action: {value}")
                 self.logger.debug(f"Error: {e}")
-                import pdb; pdb.set_trace()
+                #import pdb; pdb.set_trace()
                 continue
             #print(s_action)
             
@@ -263,8 +272,11 @@ class Nashor:
         action = self._decode_string_to_action(found_actions)
         return action
     
-    def get_action(self, action_mask, observation):
+    def get_action(self, action_mask, observation, prompt_function=None):
         """Get the next action based on the observation and action mask."""
+        if prompt_function is None:
+            prompt_function = self.prompt_function
+
         # print('prompt style: list_version1')
         self.logger.debug("-"*120)
         self.logger.info("Getting action from Nashor")
@@ -274,15 +286,18 @@ class Nashor:
         prompt_observation = self._encode_observation(observation)
 
         # Decide which prompt to use
-        prompt, decode_mode = prompts.list_version1(prompt_observation, prompt_valid_actions)
+        prompt, decode_mode = prompt_function(prompt_observation, prompt_valid_actions)
         self.logger.debug(f"Prompt:\n'''\n{prompt}\n'''")
         # print(prompt)
 
         # Send prompt to Llama
-        llama_response = self.client.chat(model='mistral', messages=[
-            #{'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': prompt}
-        ])
+        llama_response = self.client.chat(
+            model=self.llm,
+            messages=[
+                #{'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': prompt}
+            ]
+        )
         self.logger.debug(f"Response:\n'''\n{llama_response}\n'''")
 
         # Process response based on decode mode
